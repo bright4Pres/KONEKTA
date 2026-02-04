@@ -12,36 +12,30 @@ class Tilemap:
         self.tile_size = 32
         
         # Load the full scene image
-        scene_path = f'{config.IMAGE_PATH}/Sunnyside_World_ASSET_PACK_V2.1/Sunnyside_World_Tilemap.png'
-        alt_scene = f'{config.IMAGE_PATH}/Sunnyside_World_ASSET_PACK_V2.1/sunnysideworldexamplescene.png'
+        scene_path = f'{config.IMAGE_PATH}/Sunnyside_World_ASSET_PACK_V2.1/Sunnyside_World_Assets/Sunnyside_World_ExampleScene.png'
         
-        if os.path.exists(alt_scene):
-            self.map_image = pygame.image.load(alt_scene).convert()
-            print(f"Loaded map: {alt_scene}")
-        elif os.path.exists(scene_path):
+        if os.path.exists(scene_path):
             self.map_image = pygame.image.load(scene_path).convert()
             print(f"Loaded map: {scene_path}")
         else:
             # Fallback: create a simple test map
             self.map_image = pygame.Surface((1024, 768))
             self.map_image.fill((0, 200, 0))
-            print("Using fallback map")
+            print(f"Map not found at: {scene_path}")
         
         self.map_width = self.map_image.get_width()
         self.map_height = self.map_image.get_height()
         
         # Define interaction zones (x, y, width, height in pixels)
         self.interaction_zones = {
-            'word_recognition': {'x': 300, 'y': 200, 'width': 100, 'height': 100},
-            'reading_fluency': {'x': 600, 'y': 300, 'width': 100, 'height': 100},
-            'comprehension': {'x': 400, 'y': 500, 'width': 100, 'height': 100}
+            'barangay_captain': {'x': 300, 'y': 200, 'width': 100, 'height': 100},
+            'recipe_game': {'x': 600, 'y': 300, 'width': 100, 'height': 100}
         }
         
         # Building labels
         self.labels = [
-            {'text': 'Word Recognition', 'x': 300, 'y': 180, 'color': config.GREEN},
-            {'text': 'Reading Fluency', 'x': 600, 'y': 280, 'color': config.ORANGE},
-            {'text': 'Comprehension', 'x': 400, 'y': 480, 'color': config.PURPLE}
+            {'text': 'Barangay Captain', 'x': 300, 'y': 180, 'color': config.BLUE},
+            {'text': 'Recipe Game', 'x': 600, 'y': 280, 'color': config.RED}
         ]
     
     def draw(self, screen, camera_x, camera_y):
@@ -101,6 +95,7 @@ class Player:
         self.animation_frame = 0
         self.direction = 'down'
         self.moving = False
+        self.size = 48  # Character display size
         
         # Load character sprite
         self.load_sprite()
@@ -137,8 +132,8 @@ class Player:
                     x = col * frame_width
                     y = row * frame_height
                     frame = sprite_sheet.subsurface((x, y, frame_width, frame_height)).copy()
-                    # Scale to 32x32
-                    frame = pygame.transform.scale(frame, (32, 32))
+                    # Scale to character size (larger than tile)
+                    frame = pygame.transform.scale(frame, (self.size, self.size))
                     self.sprite_frames[direction].append(frame)
                 
                 # Add a 4th frame (duplicate last for smooth animation)
@@ -185,8 +180,9 @@ class Player:
     def draw(self, screen, camera_x, camera_y):
         """Draw player sprite with animation"""
         # Ensure integer screen positions (no sub-pixel rendering)
-        screen_x = int(self.pixel_x - camera_x)
-        screen_y = int(self.pixel_y - camera_y)
+        # Center the larger sprite on the player position
+        screen_x = int(self.pixel_x - camera_x - (self.size - 32) // 2)
+        screen_y = int(self.pixel_y - camera_y - (self.size - 32))
         
         # Use loaded sprite frames if available
         if self.sprite_frames:

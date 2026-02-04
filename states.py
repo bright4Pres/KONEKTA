@@ -76,12 +76,10 @@ class MenuState(State):
             elif event.key == pygame.K_SPACE:
                 # Check if player is near an interaction zone
                 if self.interaction_prompt:
-                    if self.interaction_prompt == 'word_recognition':
-                        self.next_state = 'phonics'
-                    elif self.interaction_prompt == 'reading_fluency':
-                        self.next_state = 'summit'
-                    elif self.interaction_prompt == 'comprehension':
-                        self.next_state = 'story'
+                    if self.interaction_prompt == 'barangay_captain':
+                        self.next_state = 'barangay'
+                    elif self.interaction_prompt == 'recipe_game':
+                        self.next_state = 'recipe'
         
         elif event.type == pygame.KEYUP:
             if event.key == pygame.K_UP or event.key == pygame.K_w:
@@ -118,11 +116,8 @@ class MenuState(State):
         self.camera_y = int(self.camera_y + (target_y - self.camera_y) * 0.1)
         
         # Clamp camera to map boundaries
-        map_width = len(self.tilemap.map_data[0]) * 32
-        map_height = len(self.tilemap.map_data) * 32
-        
-        self.camera_x = max(0, min(self.camera_x, map_width - config.SCREEN_WIDTH))
-        self.camera_y = max(0, min(self.camera_y, map_height - config.SCREEN_HEIGHT))
+        self.camera_x = max(0, min(self.camera_x, self.tilemap.map_width - config.SCREEN_WIDTH))
+        self.camera_y = max(0, min(self.camera_y, self.tilemap.map_height - config.SCREEN_HEIGHT))
         
         # Check if player is near an interaction zone
         self.interaction_prompt = self.tilemap.check_interaction(self.player.tile_x, self.player.tile_y)
@@ -150,9 +145,8 @@ class MenuState(State):
             pulse = abs((self.prompt_timer * 3) % 2 - 1)
             
             zone_names = {
-                'word_recognition': 'Word Recognition',
-                'reading_fluency': 'Reading Fluency',
-                'comprehension': 'Comprehension'
+                'barangay_captain': 'Barangay Captain Simulator',
+                'recipe_game': 'Recipe Game'
             }
             
             prompt_text = f"Press SPACE to enter {zone_names.get(self.interaction_prompt, '')}"
@@ -941,3 +935,220 @@ class TeacherDashboardState(State):
             # Exit hint
             esc_text = self.small_font.render('Press ESC to return', True, config.LIGHT_GRAY)
             screen.blit(esc_text, (50, config.SCREEN_HEIGHT - 50))
+
+
+class BarangayCaptainState(State):
+    """Barangay Captain Simulator - Decision making game"""
+    def __init__(self, game):
+        super().__init__(game)
+        self.current_question = 0
+        self.score = 0
+        self.happiness = 50  # Start at 50
+        self.selected_choice = None
+        self.show_result = False
+        self.result_timer = 0
+        self.font = pygame.font.Font(config.FONT_PATH, 24)  # Use Pixelify Sans
+        self.title_font = pygame.font.Font(config.FONT_PATH, 36)
+        self.small_font = pygame.font.Font(config.FONT_PATH, 18)
+    
+    def enter(self):
+        self.current_question = 0
+        self.score = 0
+        self.happiness = 50
+        self.selected_choice = None
+        self.show_result = False
+    
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                self.next_state = 'menu'
+            elif not self.show_result:
+                if event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4]:
+                    choice_index = event.key - pygame.K_1
+                    if choice_index < len(config.BARANGAY_COMPLAINTS[self.current_question]['choices']):
+                        self.selected_choice = choice_index
+                        self.show_result = True
+                        self.result_timer = time.time()
+                        # Update score and happiness
+                        if choice_index == config.BARANGAY_COMPLAINTS[self.current_question]['correct']:
+                            self.score += 1
+                        self.happiness += config.BARANGAY_COMPLAINTS[self.current_question]['happiness_impact'][choice_index]
+                        self.happiness = max(0, min(100, self.happiness))  # Clamp between 0-100
+            elif self.show_result and time.time() - self.result_timer > 2:  # Show result for 2 seconds
+                self.current_question += 1
+                if self.current_question >= len(config.BARANGAY_COMPLAINTS):
+                    # Game over, show final score
+                    self.next_state = 'menu'  # Or a results state
+                else:
+                    self.show_result = False
+                    self.selected_choice = None
+    
+    def draw(self, screen):
+        screen.fill(config.BLUE)
+        
+        if self.current_question < len(config.BARANGAY_COMPLAINTS):
+            complaint = config.BARANGAY_COMPLAINTS[self.current_question]
+            
+            # Title
+            title = self.title_font.render('Barangay Captain Simulator', True, config.WHITE)
+            screen.blit(title, (50, 50))
+            
+            # Happiness meter
+            happiness_text = self.font.render(f'Happiness: {self.happiness}/100', True, config.YELLOW)
+            screen.blit(happiness_text, (50, 120))
+            
+            # Complaint
+            complaint_lines = self.wrap_text(complaint['complaint'], 60)
+            y = 180
+            for line in complaint_lines:
+                text = self.font.render(line, True, config.WHITE)
+                screen.blit(text, (50, y))
+                y += 40
+            
+            # Choices
+            y = 300
+            for i, choice in enumerate(complaint['choices']):
+                color = config.GREEN if not self.show_result else (config.RED if i != complaint['correct'] else config.GREEN)
+                if self.show_result and i == self.selected_choice:
+                    color = config.ORANGE
+                choice_text = self.font.render(f'{i+1}. {choice}', True, color)
+                screen.blit(choice_text, (50, y))
+                y += 50
+            
+            if self.show_result:
+                result_text = self.font.render('Correct!' if self.selected_choice == complaint['correct'] else 'Incorrect!', True, config.WHITE)
+                screen.blit(result_text, (50, y + 20))
+        else:
+            # Game over
+            end_text = self.title_font.render('Game Complete!', True, config.WHITE)
+            screen.blit(end_text, (50, 200))
+            score_text = self.font.render(f'Final Score: {self.score}/{len(config.BARANGAY_COMPLAINTS)}', True, config.WHITE)
+            screen.blit(score_text, (50, 300))
+            happiness_text = self.font.render(f'Final Happiness: {self.happiness}/100', True, config.WHITE)
+            screen.blit(happiness_text, (50, 350))
+    
+    def wrap_text(self, text, max_chars):
+        words = text.split()
+        lines = []
+        current_line = ''
+        for word in words:
+            if len(current_line + word) + 1 <= max_chars:
+                current_line += ' ' + word if current_line else word
+            else:
+                lines.append(current_line)
+                current_line = word
+        if current_line:
+            lines.append(current_line)
+        return lines
+
+
+class RecipeGameState(State):
+    """Recipe Reading and Comprehension Game"""
+    def __init__(self, game):
+        super().__init__(game)
+        self.current_recipe = 0
+        self.current_question = 0
+        self.score = 0
+        self.selected_choice = None
+        self.show_result = False
+        self.result_timer = 0
+        self.font = pygame.font.Font(config.FONT_PATH, 24)  # Use Pixelify Sans
+        self.title_font = pygame.font.Font(config.FONT_PATH, 36)
+        self.recipe_shown = False
+    
+    def enter(self):
+        self.current_recipe = 0
+        self.current_question = 0
+        self.score = 0
+        self.selected_choice = None
+        self.show_result = False
+        self.recipe_shown = False
+    
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                self.next_state = 'menu'
+            elif not self.recipe_shown:
+                if event.key == pygame.K_SPACE:
+                    self.recipe_shown = True
+            elif self.current_question < len(config.RECIPES[self.current_recipe]['questions']):
+                if not self.show_result:
+                    if event.key in [pygame.K_1, pygame.K_2, pygame.K_3]:
+                        choice_index = event.key - pygame.K_1
+                        question = config.RECIPES[self.current_recipe]['questions'][self.current_question]
+                        if choice_index < len(question['choices']):
+                            self.selected_choice = choice_index
+                            self.show_result = True
+                            self.result_timer = time.time()
+                            if choice_index == question['answer']:
+                                self.score += 1
+                elif time.time() - self.result_timer > 2:
+                    self.current_question += 1
+                    if self.current_question >= len(config.RECIPES[self.current_recipe]['questions']):
+                        # Recipe complete
+                        self.next_state = 'menu'  # Or next recipe
+                    else:
+                        self.show_result = False
+                        self.selected_choice = None
+    
+    def draw(self, screen):
+        screen.fill(config.GREEN)
+        
+        recipe = config.RECIPES[self.current_recipe]
+        
+        # Title
+        title = self.title_font.render(recipe['title'], True, config.BLACK)
+        screen.blit(title, (50, 50))
+        
+        if not self.recipe_shown:
+            # Show recipe
+            y = 120
+            ingredients_title = self.font.render('Ingredients:', True, config.BLACK)
+            screen.blit(ingredients_title, (50, y))
+            y += 40
+            for ingredient in recipe['ingredients']:
+                ing_text = self.font.render(f'• {ingredient}', True, config.BLACK)
+                screen.blit(ing_text, (70, y))
+                y += 30
+            
+            y += 20
+            directions_title = self.font.render('Directions:', True, config.BLACK)
+            screen.blit(directions_title, (50, y))
+            y += 40
+            for i, direction in enumerate(recipe['directions'], 1):
+                dir_text = self.font.render(f'{i}. {direction}', True, config.BLACK)
+                screen.blit(dir_text, (50, y))
+                y += 30
+            
+            space_text = self.font.render('Press SPACE to start questions', True, config.BLUE)
+            screen.blit(space_text, (50, config.SCREEN_HEIGHT - 100))
+        elif self.current_question < len(recipe['questions']):
+            question = recipe['questions'][self.current_question]
+            
+            # Question
+            q_text = self.font.render(question['q'], True, config.BLACK)
+            screen.blit(q_text, (50, 150))
+            
+            # Choices
+            y = 220
+            for i, choice in enumerate(question['choices']):
+                color = config.BLUE
+                if self.show_result:
+                    if i == question['answer']:
+                        color = config.GREEN
+                    elif i == self.selected_choice:
+                        color = config.RED
+                choice_text = self.font.render(f'{i+1}. {choice}', True, color)
+                screen.blit(choice_text, (50, y))
+                y += 40
+            
+            if self.show_result:
+                result = 'Correct!' if self.selected_choice == question['answer'] else 'Incorrect!'
+                result_text = self.font.render(result, True, config.BLACK)
+                screen.blit(result_text, (50, y + 20))
+        else:
+            # Complete
+            complete_text = self.title_font.render('Recipe Complete!', True, config.BLACK)
+            screen.blit(complete_text, (50, 200))
+            score_text = self.font.render(f'Score: {self.score}/{len(recipe["questions"])}', True, config.BLACK)
+            screen.blit(score_text, (50, 300))

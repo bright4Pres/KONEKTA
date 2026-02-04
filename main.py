@@ -10,10 +10,9 @@ import config
 from database import Database
 from states import (
     MenuState, 
-    PhonicsForestState, 
-    SentenceSummitState, 
-    StorySeaState,
-    TeacherDashboardState
+    TeacherDashboardState,
+    BarangayCaptainState,
+    RecipeGameState
 )
 
 class Game:
@@ -51,10 +50,9 @@ class Game:
         # State management
         self.states = {
             'menu': MenuState(self),
-            'phonics': PhonicsForestState(self),
-            'summit': SentenceSummitState(self),
-            'story': StorySeaState(self),
-            'teacher': TeacherDashboardState(self)
+            'teacher': TeacherDashboardState(self),
+            'barangay': BarangayCaptainState(self),
+            'recipe': RecipeGameState(self)
         }
         
         self.current_state = self.states['menu']
