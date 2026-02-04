@@ -986,6 +986,8 @@ class BarangayCaptainState(State):
         self.font = pygame.font.Font(config.FONT_PATH, 24)  # Use Pixelify Sans
         self.title_font = pygame.font.Font(config.FONT_PATH, 36)
         self.small_font = pygame.font.Font(config.FONT_PATH, 18)
+        self.language = None  # 'english', 'filipino', 'bisaya'
+        self.game_started = False
     
     def enter(self):
         self.current_question = 0
@@ -993,11 +995,24 @@ class BarangayCaptainState(State):
         self.happiness = 50
         self.selected_choice = None
         self.show_result = False
+        self.language = None
+        self.game_started = False
     
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 self.next_state = 'menu'
+            elif not self.game_started:
+                # Language selection
+                if event.key == pygame.K_1:
+                    self.language = 'english'
+                    self.game_started = True
+                elif event.key == pygame.K_2:
+                    self.language = 'filipino'
+                    self.game_started = True
+                elif event.key == pygame.K_3:
+                    self.language = 'bisaya'
+                    self.game_started = True
             elif not self.show_result:
                 if event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4]:
                     choice_index = event.key - pygame.K_1
@@ -1025,7 +1040,47 @@ class BarangayCaptainState(State):
             color_val = int(30 + (i / config.SCREEN_HEIGHT) * 40)
             pygame.draw.rect(screen, (color_val, color_val, color_val + 80), (0, i, config.SCREEN_WIDTH, 1))
         
-        if self.current_question < len(config.BARANGAY_COMPLAINTS):
+        if not self.game_started:
+            # Language selection screen
+            title_box = pygame.Rect(config.SCREEN_WIDTH // 2 - 300, 100, 600, 80)
+            pygame.draw.rect(screen, config.BLACK, title_box.inflate(8, 8))
+            pygame.draw.rect(screen, config.BLUE, title_box)
+            pygame.draw.rect(screen, config.YELLOW, title_box, 5)
+            
+            title = self.title_font.render('SELECT LANGUAGE', True, config.YELLOW)
+            title_shadow = self.title_font.render('SELECT LANGUAGE', True, config.BLACK)
+            title_rect = title.get_rect(center=title_box.center)
+            screen.blit(title_shadow, title_rect.move(3, 3))
+            screen.blit(title, title_rect)
+            
+            # Language options
+            languages = [
+                ('1. ENGLISH', config.GREEN),
+                ('2. FILIPINO', config.ORANGE),
+                ('3. BISAYA/CEBUANO', config.PURPLE)
+            ]
+            
+            y = 250
+            for lang_text, color in languages:
+                lang_box = pygame.Rect(config.SCREEN_WIDTH // 2 - 250, y, 500, 70)
+                pygame.draw.rect(screen, config.BLACK, lang_box.inflate(6, 6))
+                pygame.draw.rect(screen, color, lang_box)
+                pygame.draw.rect(screen, config.YELLOW, lang_box, 4)
+                
+                text = self.font.render(lang_text, True, config.WHITE)
+                text_shadow = self.font.render(lang_text, True, config.BLACK)
+                text_rect = text.get_rect(center=lang_box.center)
+                screen.blit(text_shadow, text_rect.move(2, 2))
+                screen.blit(text, text_rect)
+                
+                y += 90
+            
+            # Hint
+            hint_text = self.small_font.render('Press the number key to select', True, config.WHITE)
+            hint_rect = hint_text.get_rect(center=(config.SCREEN_WIDTH // 2, 580))
+            screen.blit(hint_text, hint_rect)
+            
+        elif self.current_question < len(config.BARANGAY_COMPLAINTS):
             complaint = config.BARANGAY_COMPLAINTS[self.current_question]
             
             # Pixel-style title box
@@ -1221,6 +1276,8 @@ class RecipeGameState(State):
         self.title_font = pygame.font.Font(config.FONT_PATH, 36)
         self.small_font = pygame.font.Font(config.FONT_PATH, 18)
         self.recipe_shown = False
+        self.language = None  # 'english', 'filipino', 'bisaya'
+        self.game_started = False
     
     def enter(self):
         self.current_recipe = 0
@@ -1229,11 +1286,24 @@ class RecipeGameState(State):
         self.selected_choice = None
         self.show_result = False
         self.recipe_shown = False
+        self.language = None
+        self.game_started = False
     
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 self.next_state = 'menu'
+            elif not self.game_started:
+                # Language selection
+                if event.key == pygame.K_1:
+                    self.language = 'english'
+                    self.game_started = True
+                elif event.key == pygame.K_2:
+                    self.language = 'filipino'
+                    self.game_started = True
+                elif event.key == pygame.K_3:
+                    self.language = 'bisaya'
+                    self.game_started = True
             elif not self.recipe_shown:
                 if event.key == pygame.K_SPACE:
                     self.recipe_shown = True
@@ -1265,7 +1335,47 @@ class RecipeGameState(State):
         
         recipe = config.RECIPES[self.current_recipe]
         
-        if not self.recipe_shown:
+        if not self.game_started:
+            # Language selection screen
+            title_box = pygame.Rect(config.SCREEN_WIDTH // 2 - 300, 100, 600, 80)
+            pygame.draw.rect(screen, config.BLACK, title_box.inflate(8, 8))
+            pygame.draw.rect(screen, config.ORANGE, title_box)
+            pygame.draw.rect(screen, config.YELLOW, title_box, 5)
+            
+            title = self.title_font.render('SELECT LANGUAGE', True, config.WHITE)
+            title_shadow = self.title_font.render('SELECT LANGUAGE', True, config.BLACK)
+            title_rect = title.get_rect(center=title_box.center)
+            screen.blit(title_shadow, title_rect.move(3, 3))
+            screen.blit(title, title_rect)
+            
+            # Language options
+            languages = [
+                ('1. ENGLISH', config.GREEN),
+                ('2. FILIPINO', config.ORANGE),
+                ('3. BISAYA/CEBUANO', config.PURPLE)
+            ]
+            
+            y = 250
+            for lang_text, color in languages:
+                lang_box = pygame.Rect(config.SCREEN_WIDTH // 2 - 250, y, 500, 70)
+                pygame.draw.rect(screen, config.BLACK, lang_box.inflate(6, 6))
+                pygame.draw.rect(screen, color, lang_box)
+                pygame.draw.rect(screen, config.YELLOW, lang_box, 4)
+                
+                text = self.font.render(lang_text, True, config.WHITE)
+                text_shadow = self.font.render(lang_text, True, config.BLACK)
+                text_rect = text.get_rect(center=lang_box.center)
+                screen.blit(text_shadow, text_rect.move(2, 2))
+                screen.blit(text, text_rect)
+                
+                y += 90
+            
+            # Hint
+            hint_text = self.small_font.render('Press the number key to select', True, config.WHITE)
+            hint_rect = hint_text.get_rect(center=(config.SCREEN_WIDTH // 2, 580))
+            screen.blit(hint_text, hint_rect)
+            
+        elif not self.recipe_shown:
             # Recipe card header
             header_box = pygame.Rect(30, 30, config.SCREEN_WIDTH - 60, 80)
             pygame.draw.rect(screen, config.BLACK, header_box.inflate(8, 8))
