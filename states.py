@@ -48,6 +48,7 @@ class MenuState(State):
         self.keys_held = {'up': False, 'down': False, 'left': False, 'right': False}
         self.interaction_prompt = None
         self.prompt_timer = 0
+        self.prompt_animation_start = 0
         self.student_id = config.DEFAULT_STUDENT_ID
         self.stats = {'total_gems': 0}
     
@@ -120,7 +121,13 @@ class MenuState(State):
         self.camera_y = max(0, min(self.camera_y, self.tilemap.map_height - config.SCREEN_HEIGHT))
         
         # Check if player is near an interaction zone
-        self.interaction_prompt = self.tilemap.check_interaction(self.player.tile_x, self.player.tile_y)
+        new_prompt = self.tilemap.check_interaction(self.player.tile_x, self.player.tile_y)
+        
+        # Reset animation if entering a new zone
+        if new_prompt != self.interaction_prompt:
+            self.prompt_animation_start = time.time()
+        
+        self.interaction_prompt = new_prompt
         
         # Update prompt animation timer
         self.prompt_timer += dt
@@ -141,8 +148,21 @@ class MenuState(State):
         
         # Draw interaction prompt
         if self.interaction_prompt:
-            # Pulsing animation
-            pulse = abs((self.prompt_timer * 3) % 2 - 1)
+            # Smooth pop-up animation
+            animation_time = time.time() - self.prompt_animation_start
+            
+            # Pop-up scale effect (0.3 seconds)
+            if animation_time < 0.3:
+                scale = 0.5 + (animation_time / 0.3) * 0.5  # Scale from 0.5 to 1.0
+                scale = min(1.0, scale * 1.1)  # Slight overshoot
+            elif animation_time < 0.4:
+                # Settle back from overshoot
+                overshoot_time = animation_time - 0.3
+                scale = 1.1 - (overshoot_time / 0.1) * 0.1  # Scale from 1.1 back to 1.0
+            else:
+                # Gentle idle pulse after pop-up (much slower)
+                idle_time = animation_time - 0.4
+                scale = 1.0 + math.sin(idle_time * 2) * 0.03  # Gentle 3% pulse
             
             zone_names = {
                 'barangay_captain': 'Barangay Captain Simulator',
@@ -153,9 +173,22 @@ class MenuState(State):
             text = self.game.font_medium.render(prompt_text, True, config.WHITE)
             text_shadow = self.game.font_medium.render(prompt_text, True, config.BLACK)
             
-            # Blocky prompt box
-            prompt_rect = text.get_rect(center=(config.SCREEN_WIDTH // 2, config.SCREEN_HEIGHT - 100 - int(pulse * 10)))
-            bg_rect = prompt_rect.inflate(40, 20)
+            # Blocky prompt box with scale
+            base_width = text.get_width() + 40
+            base_height = text.get_height() + 20
+            scaled_width = int(base_width * scale)
+            scaled_height = int(base_height * scale)
+            
+            center_x = config.SCREEN_WIDTH // 2
+            center_y = config.SCREEN_HEIGHT - 100
+            
+            prompt_rect = pygame.Rect(
+                center_x - scaled_width // 2,
+                center_y - scaled_height // 2,
+                scaled_width,
+                scaled_height
+            )
+            bg_rect = prompt_rect
             
             # Shadow
             pygame.draw.rect(screen, config.BLACK, bg_rect.move(3, 3))
@@ -164,9 +197,11 @@ class MenuState(State):
             # Border
             pygame.draw.rect(screen, config.YELLOW, bg_rect, 4)
             
-            # Text
-            screen.blit(text_shadow, prompt_rect.move(2, 2))
-            screen.blit(text, prompt_rect)
+            # Text (centered in the scaled box)
+            text_rect = text.get_rect(center=bg_rect.center)
+            text_shadow_rect = text_shadow.get_rect(center=bg_rect.center)
+            screen.blit(text_shadow, text_shadow_rect.move(2, 2))
+            screen.blit(text, text_rect)
         
         # Draw controls hint at top
         controls = self.game.font_small.render("Arrow Keys / WASD: Move | SPACE: Interact | ESC: Quit", True, config.WHITE)
@@ -510,7 +545,7 @@ class SentenceSummitState(State):
                     question = self.current_passage['questions'][self.current_question]
                     if button['index'] == question['answer']:
                         self.score += config.POINTS_PER_CORRECT_ANSWER
-                        self.feedback_text = 'Tama! ✓'
+                        self.feedback_text = 'Tama!'
                     else:
                         self.feedback_text = f'Hindi tama. Tamang sagot: {question["choices"][question["answer"]]}'
                     self.show_feedback = True
@@ -696,7 +731,7 @@ class StorySeaState(State):
                     question = self.current_story['questions'][self.current_question]
                     if button['index'] == question['answer']:
                         self.score += config.POINTS_PER_CORRECT_ANSWER * 2  # Higher points for harder questions
-                        self.feedback_text = 'Tama! Napakahusay! ✓'
+                        self.feedback_text = 'Tama! Napakahusay!'
                     else:
                         correct_answer = question['choices'][question['answer']]
                         self.feedback_text = f'Hindi tama. Tamang sagot: {correct_answer}'
