@@ -7,7 +7,7 @@ Contains all game constants, settings, and configuration values
 SCREEN_WIDTH = 1024
 SCREEN_HEIGHT = 768
 FPS = 60
-KIOSK_MODE = True  # Set to True for deployment, False for development
+KIOSK_MODE = False  # Set to True for deployment, False for development
 
 # Resource paths
 IMAGE_PATH = 'resources/images'
