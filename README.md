@@ -1,103 +1,56 @@
-# KONEKTA - Assistive Literacy Learning System
+# KONEKTA
 
-An offline-first educational game system designed for Project KONEKTA to improve literacy and digital skills for students at San Alfonso Elementary School (SAES). Built with Python and Pygame for deployment on refurbished hardware.
+A literacy learning game built with Pygame, featuring multiple educational mini-games to help students improve reading comprehension, decision-making, and vocabulary skills.
 
-## 🎯 Mission
+## Features
 
-Provide an introductory foundation for children with limited technology access through an assistive, game-based learning system that strengthens literacy comprehension and digital competence.
+- **Barangay Captain Simulator**: Decision-making game where players resolve community complaints by choosing appropriate responses.
+- **Recipe Game**: Reading comprehension exercise where players follow cooking instructions and answer questions about recipes.
+- **Synonym/Antonym Word Match**: Vocabulary game that tests knowledge of synonyms and antonyms through multiple-choice questions.
+- Retro pixel art style with smooth animations
+- Language selection: English, Filipino, and Bisaya
+- Progress tracking with SQLite database
+- Offline-first design
 
-## 🎮 Game Structure
+## Requirements
 
-### The Explorer's Map (Hub)
-Students navigate a culturally relevant map of the Zamboanga Peninsula with three zones:
+- Python 3.8+
+- Pygame
 
-1. **Phonics Forest** (Always Unlocked)
-   - Sound-catching mechanic where letters fall from the sky
-   - Students use mouse/trackpad to catch letters matching phonemes
-   - Teaches visual-auditory association and mouse coordination
-   - **Unlock Requirement**: None (starter zone)
+## Installation
 
-2. **Sentence Summit** (Unlocks at 10 gems)
-   - Bridge repair mechanic with draggable word-blocks
-   - Students construct sentences by arranging words in correct order
-   - Locked words require typing to unlock
-   - Hover hints provide audio support after 3 seconds
-   - **Unlock Requirement**: 10 Knowledge Gems
+1. Clone or download the repository
+2. Install dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+3. Run the game:
+   ```
+   python main.py
+   ```
 
-3. **Story Sea** (Unlocks at 20 gems)
-   - Interactive dialogue with local NPCs (Teacher Maria, Farmer Juan)
-   - Branching narratives based on reading comprehension
-   - Wrong answers trigger learning loops with simpler explanations
-   - Stories aligned with community themes (agriculture, education)
-   - **Unlock Requirement**: 20 Knowledge Gems
+## How to Play
 
-### Teacher Dashboard (Ctrl+T)
-- Password-protected access for teachers
-- View student progress, completion rates, time spent per module
-- Generate usage reports for administrative records
-- Default password: `konekta2026` (change in config.py)
+The game starts with a main menu showing a tilemap with different zones. Click on a zone to start the corresponding game.
 
-## 🛠️ Technical Specifications
+- **Barangay Captain**: Read complaints and select the best response from multiple choices.
+- **Recipe Game**: Follow the recipe steps and answer comprehension questions.
+- **Synonym/Antonym**: Match words by identifying synonyms or antonyms from options.
 
-### Requirements
-- Python 3.11+ (tested on 3.14)
-- pygame-ce (Pygame Community Edition)
-- SQLite3 (built into Python)
-- pyinstaller (for deployment)
+Use the language selector in each game to switch between English, Filipino, and Bisaya.
 
-### System Features
-- **Offline-First**: Runs locally without internet
-- **Low-Resource**: Optimized for refurbished hardware
-- **Kiosk Mode**: Fullscreen, prevents accidental exits
-- **Assistive Features**: Timer-based hints, hover tooltips, audio feedback
-- **Progress Tracking**: Local SQLite database
-- **Safety**: No external links, closed system
+## Project Structure
 
-## 📦 Installation
+- `main.py`: Main game loop and state management
+- `states.py`: Game state classes for different screens and games
+- `config.py`: Game data and configuration
+- `database.py`: Progress tracking database
+- `tilemap.py`: Map rendering and interaction zones
+- `resources/`: Game assets (images, fonts, audio)
 
-### Development Setup
-```bash
-# Create virtual environment
-python -m venv .venv
+## Contributing
 
-# Activate (Windows)
-.venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the game
-python main.py
-```
-
-### Deployment (Standalone Executable)
-```bash
-# Install PyInstaller
-pip install pyinstaller
-
-# Create executable
-pyinstaller --onefile --windowed main.py
-
-# Executable will be in dist/ folder
-# Copy entire folder to USB drive for deployment
-```
-
-## 📁 Project Structure
-
-```
-KONEKTA/
-├── main.py              # Main game loop and state machine
-├── config.py            # Game constants and settings
-├── database.py          # SQLite progress tracking
-├── states.py            # All game state classes
-├── requirements.txt     # Python dependencies
-├── progress.db          # SQLite database (auto-created)
-├── resources/
-│   ├── audio/           # Audio files (.wav/.ogg)
-│   │   └── README.txt   # Audio recording guidelines
-│   └── images/          # Image assets (.png)
-│       └── README.txt   # Image creation guidelines
-└── README.md            # This file
+Feel free to submit issues or pull requests for improvements.
 ```
 
 ## 🎨 Asset Guidelines

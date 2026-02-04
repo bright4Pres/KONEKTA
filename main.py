@@ -12,7 +12,8 @@ from states import (
     MenuState, 
     TeacherDashboardState,
     BarangayCaptainState,
-    RecipeGameState
+    RecipeGameState,
+    SynonymAntonymState
 )
 
 class Game:
@@ -52,7 +53,8 @@ class Game:
             'menu': MenuState(self),
             'teacher': TeacherDashboardState(self),
             'barangay': BarangayCaptainState(self),
-            'recipe': RecipeGameState(self)
+            'recipe': RecipeGameState(self),
+            'synonym_antonym': SynonymAntonymState(self)
         }
         
         self.current_state = self.states['menu']

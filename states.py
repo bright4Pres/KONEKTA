@@ -82,6 +82,8 @@ class MenuState(State):
                         self.next_state = 'barangay'
                     elif self.interaction_prompt == 'recipe_game':
                         self.next_state = 'recipe'
+                    elif self.interaction_prompt == 'synonym_antonym':
+                        self.next_state = 'synonym_antonym'
         
         elif event.type == pygame.KEYUP:
             if event.key == pygame.K_UP or event.key == pygame.K_w:
@@ -167,7 +169,8 @@ class MenuState(State):
             
             zone_names = {
                 'barangay_captain': 'Barangay Captain Simulator',
-                'recipe_game': 'Recipe Game'
+                'recipe_game': 'Recipe Game',
+                'synonym_antonym': 'Word Match Game'
             }
             
             prompt_text = f"Press SPACE to enter {zone_names.get(self.interaction_prompt, '')}"
@@ -1604,3 +1607,249 @@ class RecipeGameState(State):
         if current_line:
             lines.append(current_line)
         return lines
+
+
+class SynonymAntonymState(State):
+    """Synonym/Antonym Word Matching Game"""
+    def __init__(self, game):
+        super().__init__(game)
+        self.font = pygame.font.Font(config.FONT_PATH, 28)
+        self.title_font = pygame.font.Font(config.FONT_PATH, 42)
+        self.small_font = pygame.font.Font(config.FONT_PATH, 20)
+        self.language = None
+        self.game_started = False
+        self.current_question = 0
+        self.score = 0
+        self.selected_choice = None
+        self.show_result = False
+        self.result_timer = 0
+        self.questions = []  # Will hold 15 random questions
+        self.question_type = []  # Will hold 'synonym' or 'antonym' for each
+    
+    def enter(self):
+        self.language = None
+        self.game_started = False
+        self.current_question = 0
+        self.score = 0
+        self.selected_choice = None
+        self.show_result = False
+        # Generate 15 random questions
+        import random
+        selected_words = random.sample(config.SYNONYM_ANTONYM_WORDS, min(15, len(config.SYNONYM_ANTONYM_WORDS)))
+        self.questions = selected_words
+        # Randomly assign synonym or antonym for each question
+        self.question_type = [random.choice(['synonym', 'antonym']) for _ in range(len(self.questions))]
+    
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                self.next_state = 'menu'
+            elif not self.game_started:
+                # Language selection
+                if event.key == pygame.K_1:
+                    self.language = 'english'
+                    self.game_started = True
+                elif event.key == pygame.K_2:
+                    self.language = 'filipino'
+                    self.game_started = True
+                elif event.key == pygame.K_3:
+                    self.language = 'bisaya'
+                    self.game_started = True
+            elif not self.show_result and self.current_question < len(self.questions):
+                if event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4]:
+                    choice_index = event.key - pygame.K_1
+                    question = self.questions[self.current_question]
+                    q_type = self.question_type[self.current_question]
+                    
+                    # Determine correct answer
+                    correct_answer = question['synonym'] if q_type == 'synonym' else question['antonym']
+                    selected_answer = question['choices'][choice_index]
+                    
+                    self.selected_choice = choice_index
+                    self.show_result = True
+                    self.result_timer = time.time()
+                    
+                    if selected_answer == correct_answer:
+                        self.score += 1
+            elif self.show_result and time.time() - self.result_timer > 2:
+                self.current_question += 1
+                if self.current_question >= len(self.questions):
+                    # Game over
+                    pass
+                else:
+                    self.show_result = False
+                    self.selected_choice = None
+    
+    def draw(self, screen):
+        # Purple gradient background
+        for i in range(config.SCREEN_HEIGHT):
+            color_val = int(80 + (i / config.SCREEN_HEIGHT) * 40)
+            pygame.draw.rect(screen, (color_val, color_val - 30, color_val + 60), (0, i, config.SCREEN_WIDTH, 1))
+        
+        if not self.game_started:
+            # Language selection screen
+            title_box = pygame.Rect(config.SCREEN_WIDTH // 2 - 300, 100, 600, 80)
+            pygame.draw.rect(screen, config.BLACK, title_box.inflate(8, 8))
+            pygame.draw.rect(screen, config.PURPLE, title_box)
+            pygame.draw.rect(screen, config.YELLOW, title_box, 5)
+            
+            title = self.title_font.render('SELECT LANGUAGE', True, config.WHITE)
+            title_shadow = self.title_font.render('SELECT LANGUAGE', True, config.BLACK)
+            title_rect = title.get_rect(center=title_box.center)
+            screen.blit(title_shadow, title_rect.move(3, 3))
+            screen.blit(title, title_rect)
+            
+            languages = [
+                ('1. ENGLISH', config.GREEN),
+                ('2. FILIPINO', config.ORANGE),
+                ('3. BISAYA/CEBUANO', config.PURPLE)
+            ]
+            
+            y = 250
+            for lang_text, color in languages:
+                lang_box = pygame.Rect(config.SCREEN_WIDTH // 2 - 250, y, 500, 70)
+                pygame.draw.rect(screen, config.BLACK, lang_box.inflate(6, 6))
+                pygame.draw.rect(screen, color, lang_box)
+                pygame.draw.rect(screen, config.YELLOW, lang_box, 4)
+                
+                text = self.font.render(lang_text, True, config.WHITE)
+                text_shadow = self.font.render(lang_text, True, config.BLACK)
+                text_rect = text.get_rect(center=lang_box.center)
+                screen.blit(text_shadow, text_rect.move(2, 2))
+                screen.blit(text, text_rect)
+                y += 90
+            
+            hint_text = self.small_font.render('Press the number key to select', True, config.WHITE)
+            hint_rect = hint_text.get_rect(center=(config.SCREEN_WIDTH // 2, 580))
+            screen.blit(hint_text, hint_rect)
+            
+        elif self.current_question < len(self.questions):
+            question = self.questions[self.current_question]
+            q_type = self.question_type[self.current_question]
+            
+            # Title box
+            title_box = pygame.Rect(30, 30, config.SCREEN_WIDTH - 60, 70)
+            pygame.draw.rect(screen, config.BLACK, title_box.inflate(8, 8))
+            pygame.draw.rect(screen, config.PURPLE, title_box)
+            pygame.draw.rect(screen, config.YELLOW, title_box, 5)
+            title = self.title_font.render('WORD MATCH GAME', True, config.WHITE)
+            title_rect = title.get_rect(center=title_box.center)
+            screen.blit(title, title_rect)
+            
+            # Progress and score
+            progress_box = pygame.Rect(30, 120, 200, 45)
+            pygame.draw.rect(screen, config.BLACK, progress_box.inflate(6, 6))
+            pygame.draw.rect(screen, config.DARK_GRAY, progress_box)
+            pygame.draw.rect(screen, config.WHITE, progress_box, 3)
+            progress_text = self.small_font.render(f'Question {self.current_question + 1}/15', True, config.WHITE)
+            screen.blit(progress_text, (40, 132))
+            
+            score_box = pygame.Rect(config.SCREEN_WIDTH - 230, 120, 200, 45)
+            pygame.draw.rect(screen, config.BLACK, score_box.inflate(6, 6))
+            pygame.draw.rect(screen, config.DARK_GRAY, score_box)
+            pygame.draw.rect(screen, config.WHITE, score_box, 3)
+            score_text = self.small_font.render(f'Score: {self.score}', True, config.YELLOW)
+            screen.blit(score_text, (config.SCREEN_WIDTH - 210, 132))
+            
+            # Question box
+            question_box = pygame.Rect(100, 200, config.SCREEN_WIDTH - 200, 120)
+            pygame.draw.rect(screen, config.BLACK, question_box.inflate(8, 8))
+            pygame.draw.rect(screen, config.WHITE, question_box)
+            pygame.draw.rect(screen, config.PURPLE, question_box, 5)
+            
+            # Word and question type
+            word_text = self.title_font.render(question['word'].upper(), True, config.PURPLE)
+            word_rect = word_text.get_rect(center=(config.SCREEN_WIDTH // 2, 240))
+            screen.blit(word_text, word_rect)
+            
+            prompt = f"Select the {q_type.upper()}"
+            prompt_text = self.font.render(prompt, True, config.BLACK)
+            prompt_rect = prompt_text.get_rect(center=(config.SCREEN_WIDTH // 2, 285))
+            screen.blit(prompt_text, prompt_rect)
+            
+            # Choices
+            correct_answer = question['synonym'] if q_type == 'synonym' else question['antonym']
+            y = 350
+            for i, choice in enumerate(question['choices']):
+                choice_box = pygame.Rect(100, y, config.SCREEN_WIDTH - 200, 60)
+                
+                if self.show_result:
+                    if choice == correct_answer:
+                        bg_color = config.GREEN
+                        border_color = config.WHITE
+                        text_color = config.WHITE
+                    elif i == self.selected_choice:
+                        bg_color = config.RED
+                        border_color = config.YELLOW
+                        text_color = config.WHITE
+                    else:
+                        bg_color = config.DARK_GRAY
+                        border_color = config.LIGHT_GRAY
+                        text_color = config.LIGHT_GRAY
+                else:
+                    bg_color = config.PURPLE
+                    border_color = config.YELLOW
+                    text_color = config.WHITE
+                
+                pygame.draw.rect(screen, config.BLACK, choice_box.inflate(6, 6))
+                pygame.draw.rect(screen, bg_color, choice_box)
+                pygame.draw.rect(screen, border_color, choice_box, 4)
+                
+                # Number badge
+                badge_size = 35
+                badge_rect = pygame.Rect(115, y + 12, badge_size, badge_size)
+                pygame.draw.rect(screen, config.BLACK, badge_rect.inflate(4, 4))
+                pygame.draw.rect(screen, config.YELLOW, badge_rect)
+                pygame.draw.rect(screen, config.BLACK, badge_rect, 2)
+                num_text = self.font.render(str(i + 1), True, config.BLACK)
+                num_rect = num_text.get_rect(center=badge_rect.center)
+                screen.blit(num_text, num_rect)
+                
+                # Choice text
+                choice_text = self.font.render(choice, True, text_color)
+                choice_rect = choice_text.get_rect(left=165, centery=y + 30)
+                screen.blit(choice_text, choice_rect)
+                
+                y += 75
+            
+            # Result message
+            if self.show_result:
+                result_box = pygame.Rect(config.SCREEN_WIDTH // 2 - 150, y + 10, 300, 50)
+                pygame.draw.rect(screen, config.BLACK, result_box.inflate(8, 8))
+                selected_answer = question['choices'][self.selected_choice]
+                if selected_answer == correct_answer:
+                    pygame.draw.rect(screen, config.GREEN, result_box)
+                    result_msg = '✓ CORRECT!'
+                else:
+                    pygame.draw.rect(screen, config.RED, result_box)
+                    result_msg = '✗ WRONG!'
+                pygame.draw.rect(screen, config.WHITE, result_box, 4)
+                result_text = self.font.render(result_msg, True, config.WHITE)
+                result_rect = result_text.get_rect(center=result_box.center)
+                screen.blit(result_text, result_rect)
+        
+        else:
+            # Game over screen
+            game_over_box = pygame.Rect(config.SCREEN_WIDTH // 2 - 300, 200, 600, 350)
+            pygame.draw.rect(screen, config.BLACK, game_over_box.inflate(12, 12))
+            pygame.draw.rect(screen, config.PURPLE, game_over_box)
+            pygame.draw.rect(screen, config.YELLOW, game_over_box, 6)
+            
+            title = self.title_font.render('GAME COMPLETE!', True, config.YELLOW)
+            title_shadow = self.title_font.render('GAME COMPLETE!', True, config.BLACK)
+            title_rect = title.get_rect(center=(config.SCREEN_WIDTH // 2, 270))
+            screen.blit(title_shadow, title_rect.move(3, 3))
+            screen.blit(title, title_rect)
+            
+            score_stat_box = pygame.Rect(config.SCREEN_WIDTH // 2 - 250, 350, 500, 80)
+            pygame.draw.rect(screen, config.BLACK, score_stat_box.inflate(6, 6))
+            score_color = config.GREEN if self.score >= 12 else (config.ORANGE if self.score >= 8 else config.RED)
+            pygame.draw.rect(screen, score_color, score_stat_box)
+            pygame.draw.rect(screen, config.WHITE, score_stat_box, 4)
+            score_text = self.font.render(f'Final Score: {self.score}/15', True, config.WHITE)
+            score_rect = score_text.get_rect(center=score_stat_box.center)
+            screen.blit(score_text, score_rect)
+            
+            hint_text = self.small_font.render('Press ESC to return to menu', True, config.WHITE)
+            hint_rect = hint_text.get_rect(center=(config.SCREEN_WIDTH // 2, 480))
+            screen.blit(hint_text, hint_rect)

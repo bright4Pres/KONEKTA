@@ -29,13 +29,15 @@ class Tilemap:
         # Define interaction zones (x, y, width, height in pixels)
         self.interaction_zones = {
             'barangay_captain': {'x': 300, 'y': 200, 'width': 100, 'height': 100},
-            'recipe_game': {'x': 600, 'y': 300, 'width': 100, 'height': 100}
+            'recipe_game': {'x': 600, 'y': 300, 'width': 100, 'height': 100},
+            'synonym_antonym': {'x': 450, 'y': 450, 'width': 100, 'height': 100}
         }
         
         # Building labels
         self.labels = [
             {'text': 'Barangay Captain', 'x': 300, 'y': 180, 'color': config.BLUE},
-            {'text': 'Recipe Game', 'x': 600, 'y': 280, 'color': config.RED}
+            {'text': 'Recipe Game', 'x': 600, 'y': 280, 'color': config.RED},
+            {'text': 'Word Match', 'x': 450, 'y': 430, 'color': config.PURPLE}
         ]
     
     def draw(self, screen, camera_x, camera_y):
