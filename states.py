@@ -6,6 +6,7 @@ Contains all game state classes and logic
 import pygame
 import random
 import time
+import math
 import config
 from database import Database
 from tilemap import Tilemap, Player
@@ -1218,6 +1219,7 @@ class RecipeGameState(State):
         self.result_timer = 0
         self.font = pygame.font.Font(config.FONT_PATH, 24)  # Use Pixelify Sans
         self.title_font = pygame.font.Font(config.FONT_PATH, 36)
+        self.small_font = pygame.font.Font(config.FONT_PATH, 18)
         self.recipe_shown = False
     
     def enter(self):
@@ -1477,3 +1479,18 @@ class RecipeGameState(State):
             hint_text = self.small_font.render('Press ESC to return to menu', True, config.WHITE)
             hint_rect = hint_text.get_rect(center=(config.SCREEN_WIDTH // 2, 480))
             screen.blit(hint_text, hint_rect)
+    
+    def wrap_text(self, text, max_chars):
+        """Wrap text to fit within max_chars per line"""
+        words = text.split()
+        lines = []
+        current_line = ''
+        for word in words:
+            if len(current_line + word) + 1 <= max_chars:
+                current_line += ' ' + word if current_line else word
+            else:
+                lines.append(current_line)
+                current_line = word
+        if current_line:
+            lines.append(current_line)
+        return lines
