@@ -984,48 +984,177 @@ class BarangayCaptainState(State):
                     self.selected_choice = None
     
     def draw(self, screen):
-        screen.fill(config.BLUE)
+        # Retro gradient background
+        for i in range(config.SCREEN_HEIGHT):
+            color_val = int(30 + (i / config.SCREEN_HEIGHT) * 40)
+            pygame.draw.rect(screen, (color_val, color_val, color_val + 80), (0, i, config.SCREEN_WIDTH, 1))
         
         if self.current_question < len(config.BARANGAY_COMPLAINTS):
             complaint = config.BARANGAY_COMPLAINTS[self.current_question]
             
-            # Title
-            title = self.title_font.render('Barangay Captain Simulator', True, config.WHITE)
-            screen.blit(title, (50, 50))
+            # Pixel-style title box
+            title_box = pygame.Rect(20, 20, config.SCREEN_WIDTH - 40, 70)
+            pygame.draw.rect(screen, config.BLACK, title_box.inflate(8, 8))
+            pygame.draw.rect(screen, config.BLUE, title_box)
+            pygame.draw.rect(screen, config.YELLOW, title_box, 4)
+            title = self.title_font.render('BARANGAY CAPTAIN', True, config.YELLOW)
+            title_shadow = self.title_font.render('BARANGAY CAPTAIN', True, config.BLACK)
+            title_rect = title.get_rect(center=(config.SCREEN_WIDTH // 2, 55))
+            screen.blit(title_shadow, title_rect.move(3, 3))
+            screen.blit(title, title_rect)
             
-            # Happiness meter
-            happiness_text = self.font.render(f'Happiness: {self.happiness}/100', True, config.YELLOW)
-            screen.blit(happiness_text, (50, 120))
+            # Progress and Happiness bars side by side
+            info_y = 110
             
-            # Complaint
-            complaint_lines = self.wrap_text(complaint['complaint'], 60)
-            y = 180
+            # Progress counter box
+            progress_box = pygame.Rect(30, info_y, 200, 50)
+            pygame.draw.rect(screen, config.BLACK, progress_box.inflate(6, 6))
+            pygame.draw.rect(screen, config.DARK_GRAY, progress_box)
+            pygame.draw.rect(screen, config.WHITE, progress_box, 3)
+            progress_text = self.small_font.render(f'Question {self.current_question + 1}/{len(config.BARANGAY_COMPLAINTS)}', True, config.WHITE)
+            screen.blit(progress_text, (40, info_y + 15))
+            
+            # Happiness meter box with bar
+            happiness_box = pygame.Rect(250, info_y, 400, 50)
+            pygame.draw.rect(screen, config.BLACK, happiness_box.inflate(6, 6))
+            pygame.draw.rect(screen, config.DARK_GRAY, happiness_box)
+            pygame.draw.rect(screen, config.WHITE, happiness_box, 3)
+            
+            # Happiness bar
+            bar_width = int((self.happiness / 100) * 360)
+            bar_color = config.GREEN if self.happiness >= 70 else (config.YELLOW if self.happiness >= 40 else config.RED)
+            pygame.draw.rect(screen, bar_color, (270, info_y + 15, bar_width, 20))
+            pygame.draw.rect(screen, config.WHITE, (270, info_y + 15, 360, 20), 2)
+            
+            happiness_text = self.small_font.render(f'Happiness: {self.happiness}/100', True, config.WHITE)
+            screen.blit(happiness_text, (270, info_y + 15))
+            
+            # Score box
+            score_box = pygame.Rect(670, info_y, 320, 50)
+            pygame.draw.rect(screen, config.BLACK, score_box.inflate(6, 6))
+            pygame.draw.rect(screen, config.DARK_GRAY, score_box)
+            pygame.draw.rect(screen, config.WHITE, score_box, 3)
+            score_text = self.small_font.render(f'Correct: {self.score}', True, config.YELLOW)
+            screen.blit(score_text, (690, info_y + 15))
+            
+            # Complaint box (speech bubble style)
+            complaint_box = pygame.Rect(40, 190, config.SCREEN_WIDTH - 80, 140)
+            pygame.draw.rect(screen, config.BLACK, complaint_box.inflate(8, 8))
+            pygame.draw.rect(screen, config.WHITE, complaint_box)
+            pygame.draw.rect(screen, config.BLACK, complaint_box, 4)
+            
+            # Complaint text
+            complaint_lines = self.wrap_text(complaint['complaint'], 80)
+            y = 210
             for line in complaint_lines:
-                text = self.font.render(line, True, config.WHITE)
-                screen.blit(text, (50, y))
-                y += 40
+                text = self.font.render(line, True, config.BLACK)
+                screen.blit(text, (60, y))
+                y += 35
             
-            # Choices
-            y = 300
+            # Choices as retro buttons
+            y = 360
             for i, choice in enumerate(complaint['choices']):
-                color = config.GREEN if not self.show_result else (config.RED if i != complaint['correct'] else config.GREEN)
-                if self.show_result and i == self.selected_choice:
-                    color = config.ORANGE
-                choice_text = self.font.render(f'{i+1}. {choice}', True, color)
-                screen.blit(choice_text, (50, y))
-                y += 50
+                choice_lines = self.wrap_text(choice, 60)
+                choice_height = len(choice_lines) * 28 + 20
+                choice_box = pygame.Rect(60, y, config.SCREEN_WIDTH - 120, choice_height)
+                
+                # Determine colors based on state
+                if self.show_result:
+                    if i == complaint['correct']:
+                        bg_color = config.GREEN
+                        border_color = config.WHITE
+                        text_color = config.WHITE
+                    elif i == self.selected_choice:
+                        bg_color = config.RED
+                        border_color = config.YELLOW
+                        text_color = config.WHITE
+                    else:
+                        bg_color = config.DARK_GRAY
+                        border_color = config.LIGHT_GRAY
+                        text_color = config.LIGHT_GRAY
+                else:
+                    bg_color = config.BLUE
+                    border_color = config.YELLOW
+                    text_color = config.WHITE
+                
+                # Draw button
+                pygame.draw.rect(screen, config.BLACK, choice_box.inflate(6, 6))
+                pygame.draw.rect(screen, bg_color, choice_box)
+                pygame.draw.rect(screen, border_color, choice_box, 3)
+                
+                # Number badge
+                badge_size = 30
+                badge_rect = pygame.Rect(70, y + (choice_height - badge_size) // 2, badge_size, badge_size)
+                pygame.draw.rect(screen, config.BLACK, badge_rect.inflate(4, 4))
+                pygame.draw.rect(screen, config.YELLOW, badge_rect)
+                pygame.draw.rect(screen, config.BLACK, badge_rect, 2)
+                num_text = self.font.render(str(i + 1), True, config.BLACK)
+                num_rect = num_text.get_rect(center=badge_rect.center)
+                screen.blit(num_text, num_rect)
+                
+                # Choice text
+                text_y = y + 10
+                for line in choice_lines:
+                    choice_text = self.small_font.render(line, True, text_color)
+                    screen.blit(choice_text, (115, text_y))
+                    text_y += 28
+                
+                y += choice_height + 10
             
+            # Result message
             if self.show_result:
-                result_text = self.font.render('Correct!' if self.selected_choice == complaint['correct'] else 'Incorrect!', True, config.WHITE)
-                screen.blit(result_text, (50, y + 20))
+                result_box = pygame.Rect(config.SCREEN_WIDTH // 2 - 150, y + 10, 300, 50)
+                pygame.draw.rect(screen, config.BLACK, result_box.inflate(8, 8))
+                if self.selected_choice == complaint['correct']:
+                    pygame.draw.rect(screen, config.GREEN, result_box)
+                    result_msg = '✓ CORRECT!'
+                else:
+                    pygame.draw.rect(screen, config.RED, result_box)
+                    result_msg = '✗ INCORRECT!'
+                pygame.draw.rect(screen, config.WHITE, result_box, 4)
+                result_text = self.font.render(result_msg, True, config.WHITE)
+                result_rect = result_text.get_rect(center=result_box.center)
+                screen.blit(result_text, result_rect)
         else:
-            # Game over
-            end_text = self.title_font.render('Game Complete!', True, config.WHITE)
-            screen.blit(end_text, (50, 200))
-            score_text = self.font.render(f'Final Score: {self.score}/{len(config.BARANGAY_COMPLAINTS)}', True, config.WHITE)
-            screen.blit(score_text, (50, 300))
+            # Game over screen
+            game_over_box = pygame.Rect(config.SCREEN_WIDTH // 2 - 300, 150, 600, 400)
+            pygame.draw.rect(screen, config.BLACK, game_over_box.inflate(12, 12))
+            pygame.draw.rect(screen, config.BLUE, game_over_box)
+            pygame.draw.rect(screen, config.YELLOW, game_over_box, 6)
+            
+            # Title
+            end_text = self.title_font.render('MISSION COMPLETE!', True, config.YELLOW)
+            end_shadow = self.title_font.render('MISSION COMPLETE!', True, config.BLACK)
+            end_rect = end_text.get_rect(center=(config.SCREEN_WIDTH // 2, 220))
+            screen.blit(end_shadow, end_rect.move(3, 3))
+            screen.blit(end_text, end_rect)
+            
+            # Stats boxes
+            stat_y = 320
+            
+            # Score box
+            score_stat_box = pygame.Rect(config.SCREEN_WIDTH // 2 - 250, stat_y, 500, 60)
+            pygame.draw.rect(screen, config.BLACK, score_stat_box.inflate(6, 6))
+            pygame.draw.rect(screen, config.GREEN if self.score >= len(config.BARANGAY_COMPLAINTS) * 0.7 else config.ORANGE, score_stat_box)
+            pygame.draw.rect(screen, config.WHITE, score_stat_box, 3)
+            score_text = self.font.render(f'Correct Answers: {self.score}/{len(config.BARANGAY_COMPLAINTS)}', True, config.WHITE)
+            score_rect = score_text.get_rect(center=score_stat_box.center)
+            screen.blit(score_text, score_rect)
+            
+            # Happiness box
+            happiness_stat_box = pygame.Rect(config.SCREEN_WIDTH // 2 - 250, stat_y + 80, 500, 60)
+            pygame.draw.rect(screen, config.BLACK, happiness_stat_box.inflate(6, 6))
+            happiness_color = config.GREEN if self.happiness >= 70 else (config.YELLOW if self.happiness >= 40 else config.RED)
+            pygame.draw.rect(screen, happiness_color, happiness_stat_box)
+            pygame.draw.rect(screen, config.WHITE, happiness_stat_box, 3)
             happiness_text = self.font.render(f'Final Happiness: {self.happiness}/100', True, config.WHITE)
-            screen.blit(happiness_text, (50, 350))
+            happiness_rect = happiness_text.get_rect(center=happiness_stat_box.center)
+            screen.blit(happiness_text, happiness_rect)
+            
+            # Press ESC hint
+            hint_text = self.small_font.render('Press ESC to return to menu', True, config.WHITE)
+            hint_rect = hint_text.get_rect(center=(config.SCREEN_WIDTH // 2, 480))
+            screen.blit(hint_text, hint_rect)
     
     def wrap_text(self, text, max_chars):
         words = text.split()
@@ -1092,63 +1221,224 @@ class RecipeGameState(State):
                         self.selected_choice = None
     
     def draw(self, screen):
-        screen.fill(config.GREEN)
+        # Warm gradient background for recipe
+        for i in range(config.SCREEN_HEIGHT):
+            color_val = int(220 + (i / config.SCREEN_HEIGHT) * 35)
+            pygame.draw.rect(screen, (color_val, color_val - 30, color_val - 80), (0, i, config.SCREEN_WIDTH, 1))
         
         recipe = config.RECIPES[self.current_recipe]
         
-        # Title
-        title = self.title_font.render(recipe['title'], True, config.BLACK)
-        screen.blit(title, (50, 50))
-        
         if not self.recipe_shown:
-            # Show recipe
-            y = 120
-            ingredients_title = self.font.render('Ingredients:', True, config.BLACK)
-            screen.blit(ingredients_title, (50, y))
-            y += 40
+            # Recipe card header
+            header_box = pygame.Rect(30, 30, config.SCREEN_WIDTH - 60, 80)
+            pygame.draw.rect(screen, config.BLACK, header_box.inflate(8, 8))
+            pygame.draw.rect(screen, config.ORANGE, header_box)
+            pygame.draw.rect(screen, config.YELLOW, header_box, 5)
+            
+            title = self.title_font.render(recipe['title'].upper(), True, config.WHITE)
+            title_shadow = self.title_font.render(recipe['title'].upper(), True, config.BLACK)
+            title_rect = title.get_rect(center=(config.SCREEN_WIDTH // 2, 70))
+            screen.blit(title_shadow, title_rect.move(3, 3))
+            screen.blit(title, title_rect)
+            
+            # Ingredients section
+            ingredients_box = pygame.Rect(40, 130, 450, 560)
+            pygame.draw.rect(screen, config.BLACK, ingredients_box.inflate(8, 8))
+            pygame.draw.rect(screen, (255, 250, 230), ingredients_box)
+            pygame.draw.rect(screen, config.ORANGE, ingredients_box, 4)
+            
+            # Ingredients header
+            ing_header_box = pygame.Rect(50, 140, 430, 40)
+            pygame.draw.rect(screen, config.ORANGE, ing_header_box)
+            pygame.draw.rect(screen, config.YELLOW, ing_header_box, 3)
+            ing_title = self.font.render('INGREDIENTS', True, config.WHITE)
+            ing_title_rect = ing_title.get_rect(center=ing_header_box.center)
+            screen.blit(ing_title, ing_title_rect)
+            
+            # Ingredients list
+            y = 195
             for ingredient in recipe['ingredients']:
-                ing_text = self.font.render(f'• {ingredient}', True, config.BLACK)
-                screen.blit(ing_text, (70, y))
-                y += 30
+                # Bullet point
+                pygame.draw.circle(screen, config.ORANGE, (65, y + 10), 5)
+                ing_text = self.small_font.render(ingredient, True, config.BLACK)
+                screen.blit(ing_text, (80, y))
+                y += 28
             
-            y += 20
-            directions_title = self.font.render('Directions:', True, config.BLACK)
-            screen.blit(directions_title, (50, y))
-            y += 40
+            # Directions section
+            directions_box = pygame.Rect(510, 130, 475, 560)
+            pygame.draw.rect(screen, config.BLACK, directions_box.inflate(8, 8))
+            pygame.draw.rect(screen, (255, 250, 230), directions_box)
+            pygame.draw.rect(screen, config.ORANGE, directions_box, 4)
+            
+            # Directions header
+            dir_header_box = pygame.Rect(520, 140, 455, 40)
+            pygame.draw.rect(screen, config.ORANGE, dir_header_box)
+            pygame.draw.rect(screen, config.YELLOW, dir_header_box, 3)
+            dir_title = self.font.render('DIRECTIONS', True, config.WHITE)
+            dir_title_rect = dir_title.get_rect(center=dir_header_box.center)
+            screen.blit(dir_title, dir_title_rect)
+            
+            # Directions list
+            y = 195
             for i, direction in enumerate(recipe['directions'], 1):
-                dir_text = self.font.render(f'{i}. {direction}', True, config.BLACK)
-                screen.blit(dir_text, (50, y))
-                y += 30
+                # Step number badge
+                badge_size = 25
+                badge_rect = pygame.Rect(525, y, badge_size, badge_size)
+                pygame.draw.rect(screen, config.ORANGE, badge_rect)
+                pygame.draw.rect(screen, config.YELLOW, badge_rect, 2)
+                num_text = self.small_font.render(str(i), True, config.WHITE)
+                num_rect = num_text.get_rect(center=badge_rect.center)
+                screen.blit(num_text, num_rect)
+                
+                # Direction text with wrapping
+                dir_lines = self.wrap_text(direction, 50)
+                text_y = y
+                for line in dir_lines:
+                    dir_text = self.small_font.render(line, True, config.BLACK)
+                    screen.blit(dir_text, (560, text_y))
+                    text_y += 24
+                y += max(28, len(dir_lines) * 24 + 4)
             
-            space_text = self.font.render('Press SPACE to start questions', True, config.BLUE)
-            screen.blit(space_text, (50, config.SCREEN_HEIGHT - 100))
+            # Prompt box
+            prompt_box = pygame.Rect(config.SCREEN_WIDTH // 2 - 250, config.SCREEN_HEIGHT - 70, 500, 50)
+            pygame.draw.rect(screen, config.BLACK, prompt_box.inflate(8, 8))
+            pygame.draw.rect(screen, config.BLUE, prompt_box)
+            pygame.draw.rect(screen, config.YELLOW, prompt_box, 4)
+            space_text = self.font.render('Press SPACE to start quiz', True, config.WHITE)
+            space_rect = space_text.get_rect(center=prompt_box.center)
+            screen.blit(space_text, space_rect)
+            
         elif self.current_question < len(recipe['questions']):
             question = recipe['questions'][self.current_question]
             
-            # Question
-            q_text = self.font.render(question['q'], True, config.BLACK)
-            screen.blit(q_text, (50, 150))
+            # Title box
+            title_box = pygame.Rect(30, 30, config.SCREEN_WIDTH - 60, 70)
+            pygame.draw.rect(screen, config.BLACK, title_box.inflate(8, 8))
+            pygame.draw.rect(screen, config.ORANGE, title_box)
+            pygame.draw.rect(screen, config.YELLOW, title_box, 4)
+            title = self.title_font.render(recipe['title'].upper(), True, config.WHITE)
+            title_rect = title.get_rect(center=(config.SCREEN_WIDTH // 2, 65))
+            screen.blit(title, title_rect)
             
-            # Choices
-            y = 220
+            # Progress indicator
+            progress_box = pygame.Rect(30, 120, 200, 45)
+            pygame.draw.rect(screen, config.BLACK, progress_box.inflate(6, 6))
+            pygame.draw.rect(screen, config.DARK_GRAY, progress_box)
+            pygame.draw.rect(screen, config.WHITE, progress_box, 3)
+            progress_text = self.small_font.render(f'Question {self.current_question + 1}/{len(recipe["questions"])}', True, config.WHITE)
+            screen.blit(progress_text, (40, 132))
+            
+            # Score indicator
+            score_box = pygame.Rect(config.SCREEN_WIDTH - 230, 120, 200, 45)
+            pygame.draw.rect(screen, config.BLACK, score_box.inflate(6, 6))
+            pygame.draw.rect(screen, config.DARK_GRAY, score_box)
+            pygame.draw.rect(screen, config.WHITE, score_box, 3)
+            score_disp = self.small_font.render(f'Score: {self.score}', True, config.YELLOW)
+            screen.blit(score_disp, (config.SCREEN_WIDTH - 210, 132))
+            
+            # Question box
+            question_box = pygame.Rect(50, 190, config.SCREEN_WIDTH - 100, 100)
+            pygame.draw.rect(screen, config.BLACK, question_box.inflate(8, 8))
+            pygame.draw.rect(screen, config.WHITE, question_box)
+            pygame.draw.rect(screen, config.ORANGE, question_box, 4)
+            
+            q_lines = self.wrap_text(question['q'], 75)
+            q_y = 210
+            for line in q_lines:
+                q_text = self.font.render(line, True, config.BLACK)
+                q_rect = q_text.get_rect(center=(config.SCREEN_WIDTH // 2, q_y))
+                screen.blit(q_text, q_rect)
+                q_y += 35
+            
+            # Choices as retro buttons
+            y = 320
             for i, choice in enumerate(question['choices']):
-                color = config.BLUE
+                choice_lines = self.wrap_text(choice, 70)
+                choice_height = len(choice_lines) * 28 + 20
+                choice_box = pygame.Rect(80, y, config.SCREEN_WIDTH - 160, choice_height)
+                
+                # Determine colors
                 if self.show_result:
                     if i == question['answer']:
-                        color = config.GREEN
+                        bg_color = config.GREEN
+                        border_color = config.WHITE
+                        text_color = config.WHITE
                     elif i == self.selected_choice:
-                        color = config.RED
-                choice_text = self.font.render(f'{i+1}. {choice}', True, color)
-                screen.blit(choice_text, (50, y))
-                y += 40
+                        bg_color = config.RED
+                        border_color = config.YELLOW
+                        text_color = config.WHITE
+                    else:
+                        bg_color = config.DARK_GRAY
+                        border_color = config.LIGHT_GRAY
+                        text_color = config.LIGHT_GRAY
+                else:
+                    bg_color = config.ORANGE
+                    border_color = config.YELLOW
+                    text_color = config.WHITE
+                
+                # Draw button
+                pygame.draw.rect(screen, config.BLACK, choice_box.inflate(6, 6))
+                pygame.draw.rect(screen, bg_color, choice_box)
+                pygame.draw.rect(screen, border_color, choice_box, 3)
+                
+                # Number badge
+                badge_size = 30
+                badge_rect = pygame.Rect(90, y + (choice_height - badge_size) // 2, badge_size, badge_size)
+                pygame.draw.rect(screen, config.BLACK, badge_rect.inflate(4, 4))
+                pygame.draw.rect(screen, config.YELLOW, badge_rect)
+                pygame.draw.rect(screen, config.BLACK, badge_rect, 2)
+                num_text = self.font.render(str(i + 1), True, config.BLACK)
+                num_rect = num_text.get_rect(center=badge_rect.center)
+                screen.blit(num_text, num_rect)
+                
+                # Choice text
+                text_y = y + 10
+                for line in choice_lines:
+                    choice_text = self.small_font.render(line, True, text_color)
+                    screen.blit(choice_text, (135, text_y))
+                    text_y += 28
+                
+                y += choice_height + 12
             
+            # Result message
             if self.show_result:
-                result = 'Correct!' if self.selected_choice == question['answer'] else 'Incorrect!'
-                result_text = self.font.render(result, True, config.BLACK)
-                screen.blit(result_text, (50, y + 20))
+                result_box = pygame.Rect(config.SCREEN_WIDTH // 2 - 150, y + 10, 300, 50)
+                pygame.draw.rect(screen, config.BLACK, result_box.inflate(8, 8))
+                if self.selected_choice == question['answer']:
+                    pygame.draw.rect(screen, config.GREEN, result_box)
+                    result_msg = '✓ CORRECT!'
+                else:
+                    pygame.draw.rect(screen, config.RED, result_box)
+                    result_msg = '✗ WRONG!'
+                pygame.draw.rect(screen, config.WHITE, result_box, 4)
+                result_text = self.font.render(result_msg, True, config.WHITE)
+                result_rect = result_text.get_rect(center=result_box.center)
+                screen.blit(result_text, result_rect)
         else:
-            # Complete
-            complete_text = self.title_font.render('Recipe Complete!', True, config.BLACK)
-            screen.blit(complete_text, (50, 200))
-            score_text = self.font.render(f'Score: {self.score}/{len(recipe["questions"])}', True, config.BLACK)
-            screen.blit(score_text, (50, 300))
+            # Complete screen
+            complete_box = pygame.Rect(config.SCREEN_WIDTH // 2 - 300, 200, 600, 350)
+            pygame.draw.rect(screen, config.BLACK, complete_box.inflate(12, 12))
+            pygame.draw.rect(screen, config.ORANGE, complete_box)
+            pygame.draw.rect(screen, config.YELLOW, complete_box, 6)
+            
+            # Title
+            complete_text = self.title_font.render('RECIPE MASTERED!', True, config.WHITE)
+            complete_shadow = self.title_font.render('RECIPE MASTERED!', True, config.BLACK)
+            complete_rect = complete_text.get_rect(center=(config.SCREEN_WIDTH // 2, 270))
+            screen.blit(complete_shadow, complete_rect.move(3, 3))
+            screen.blit(complete_text, complete_rect)
+            
+            # Score box
+            score_stat_box = pygame.Rect(config.SCREEN_WIDTH // 2 - 250, 350, 500, 80)
+            pygame.draw.rect(screen, config.BLACK, score_stat_box.inflate(6, 6))
+            score_color = config.GREEN if self.score == len(recipe["questions"]) else (config.ORANGE if self.score >= len(recipe["questions"]) * 0.6 else config.RED)
+            pygame.draw.rect(screen, score_color, score_stat_box)
+            pygame.draw.rect(screen, config.WHITE, score_stat_box, 4)
+            score_text = self.font.render(f'Final Score: {self.score}/{len(recipe["questions"])}', True, config.WHITE)
+            score_rect = score_text.get_rect(center=score_stat_box.center)
+            screen.blit(score_text, score_rect)
+            
+            # Hint
+            hint_text = self.small_font.render('Press ESC to return to menu', True, config.WHITE)
+            hint_rect = hint_text.get_rect(center=(config.SCREEN_WIDTH // 2, 480))
+            screen.blit(hint_text, hint_rect)
