@@ -4,8 +4,8 @@ Contains all game constants, settings, and configuration values
 """
 
 # Screen settings
-SCREEN_WIDTH = 1024
-SCREEN_HEIGHT = 768
+SCREEN_WIDTH = 900
+SCREEN_HEIGHT = 600
 FPS = 60
 KIOSK_MODE = False  # Set to True for deployment, False for development
 

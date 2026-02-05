@@ -43,7 +43,7 @@ class MenuState(State):
     def __init__(self, game):
         super().__init__(game)
         self.tilemap = Tilemap()
-        self.player = Player(10, 8)  # Start in center
+        self.player = Player(self.tilemap.spawn_x, self.tilemap.spawn_y)  # Start on land
         self.camera_x = 0
         self.camera_y = 0
         self.keys_held = {'up': False, 'down': False, 'left': False, 'right': False}
@@ -57,7 +57,7 @@ class MenuState(State):
     def enter(self):
         """Load student stats and reset player"""
         self.stats = self.game.db.get_student_stats(self.student_id)
-        self.player = Player(10, 8)
+        self.player = Player(self.tilemap.spawn_x, self.tilemap.spawn_y)
         self.interaction_prompt = None
         
         # Center camera on player immediately

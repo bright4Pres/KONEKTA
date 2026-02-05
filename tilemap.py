@@ -1,52 +1,216 @@
 """
 Tilemap system for retro 2D overworld
-Loads 32x32 tile sprites and arranges them in a grid
+Loads CSV layers and tileset for proper depth layering
 """
 
 import pygame
 import os
+import csv
 import config
 
 class Tilemap:
     def __init__(self):
-        self.tile_size = 32
+        self.tile_size = 32  # Map tile size
+        self.tileset_tile_size = 16  # Tileset tile size
         
-        # Load the full scene image
-        scene_path = f'{config.IMAGE_PATH}/Sunnyside_World_ASSET_PACK_V2.1/Sunnyside_World_Assets/Sunnyside_World_ExampleScene.png'
-        
-        if os.path.exists(scene_path):
-            self.map_image = pygame.image.load(scene_path).convert()
-            print(f"Loaded map: {scene_path}")
+        # Load tileset
+        tileset_path = f'{config.IMAGE_PATH}/Sunnyside_World_ASSET_PACK_V2.1/Sunnyside_World_Assets/Tileset/spr_tileset_sunnysideworld_16px.png'
+        if os.path.exists(tileset_path):
+            self.tileset = pygame.image.load(tileset_path).convert_alpha()
+            self.tileset_width = self.tileset.get_width() // self.tileset_tile_size  # 64
+            self.tileset_height = self.tileset.get_height() // self.tileset_tile_size  # 64
+            print(f"Loaded tileset: {tileset_path}")
         else:
-            # Fallback: create a simple test map
-            self.map_image = pygame.Surface((1024, 768))
-            self.map_image.fill((0, 200, 0))
-            print(f"Map not found at: {scene_path}")
+            self.tileset = None
+            print(f"Tileset not found: {tileset_path}")
         
-        self.map_width = self.map_image.get_width()
-        self.map_height = self.map_image.get_height()
+        # Layer order (drawing order, bottom to top)
+        self.layer_order = [
+            'land', 'shadow_under', 'under', 'water', 'path', 'bridge', 'over', 
+            'waterfall', 'items', 'sign', 'house', 'house1', 'front', 'trees', 
+            'rocks', 'shadow'
+        ]
         
-        # Define interaction zones (x, y, width, height in pixels)
-        self.interaction_zones = {
-            'barangay_captain': {'x': 300, 'y': 200, 'width': 100, 'height': 100},
-            'recipe_game': {'x': 600, 'y': 300, 'width': 100, 'height': 100},
-            'synonym_antonym': {'x': 450, 'y': 450, 'width': 100, 'height': 100}
-        }
+        # Load layers
+        self.layers = {}
+        self.collision_map = []
+        konekta_path = f'{config.RESOURCES_PATH}/konekta'
         
-        # Building labels
+        for layer_name in self.layer_order + ['collision', 'gamedesignation']:
+            csv_path = f'{konekta_path}/konekta._{layer_name}.csv'
+            if os.path.exists(csv_path):
+                self.layers[layer_name] = self.load_csv_layer(csv_path)
+                # Debug: count non-empty tiles
+                non_empty = sum(1 for row in self.layers[layer_name] for tile in row if tile > 0)
+                print(f"Loaded layer: {layer_name} ({non_empty} non-empty tiles)")
+            else:
+                print(f"Layer not found: {layer_name}")
+        
+        # Set map dimensions from first layer
+        if self.layers:
+            first_layer = list(self.layers.values())[0]
+            self.map_width = len(first_layer[0]) * self.tile_size
+            self.map_height = len(first_layer) * self.tile_size
+        else:
+            self.map_width = 1024
+            self.map_height = 768
+        
+        # Process collision layer
+        if 'collision' in self.layers:
+            self.collision_map = self.layers['collision']
+        
+        # Process gamedesignation for interaction zones
+        self.interaction_zones = {}
+        if 'gamedesignation' in self.layers:
+            self.process_gamedesignation()
+        
+        # Find spawn position on land
+        self.spawn_x, self.spawn_y = self.find_spawn_position()
+        
+        # Building labels (keep for now, could be moved to gamedesignation)
         self.labels = [
             {'text': 'Barangay Captain', 'x': 300, 'y': 180, 'color': config.BLUE},
             {'text': 'Recipe Game', 'x': 600, 'y': 280, 'color': config.RED},
             {'text': 'Word Match', 'x': 450, 'y': 430, 'color': config.PURPLE}
         ]
     
+    def load_csv_layer(self, csv_path):
+        """Load a CSV layer into a 2D list"""
+        layer = []
+        with open(csv_path, 'r') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                layer.append([int(cell) if cell and cell != '-1' else 0 for cell in row])
+        return layer
+    
+    def process_gamedesignation(self):
+        """Process gamedesignation layer for interaction zones"""
+        # This would map special tile IDs to zone names
+        # For now, keep hardcoded zones
+        pass
+    
+    def find_spawn_position(self):
+        """Find a suitable spawn position on land, not blocked"""
+        # Try to find center of map with tiles
+        for layer_name in ['land', 'path', 'water']:
+            if layer_name in self.layers:
+                layer = self.layers[layer_name]
+                for y, row in enumerate(layer):
+                    for x, tile_id in enumerate(row):
+                        if tile_id > 0:
+                            print(f"Found spawn on {layer_name} at ({x}, {y}), ID: {tile_id}")
+                            return x, y
+        
+        # Fallback to center of map
+        if self.layers:
+            first_layer = list(self.layers.values())[0]
+            center_x = len(first_layer[0]) // 2
+            center_y = len(first_layer) // 2
+            print(f"Using map center: ({center_x}, {center_y})")
+            return center_x, center_y
+        
+        print("No suitable spawn found, using default (10, 8)")
+        return 10, 8
+    
     def draw(self, screen, camera_x, camera_y):
-        """Draw the full map image with camera offset"""
+        """Draw all map layers with camera offset"""
         camera_x = int(camera_x)
         camera_y = int(camera_y)
         
-        # Draw the full scene
-        screen.blit(self.map_image, (-camera_x, -camera_y))
+        if not self.tileset:
+            return
+        
+        # Draw layers in order
+        for layer_name in self.layer_order:
+            if layer_name in self.layers:
+                self.draw_layer(screen, self.layers[layer_name], camera_x, camera_y)
+    
+    def draw_layer(self, screen, layer_data, camera_x, camera_y):
+        """Draw a single layer"""
+        tiles_drawn = 0
+        
+        # Tiled flip flags
+        FLIPPED_HORIZONTALLY_FLAG = 0x80000000
+        FLIPPED_VERTICALLY_FLAG = 0x40000000
+        FLIPPED_DIAGONALLY_FLAG = 0x20000000
+        FLAGS_MASK = ~(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG)
+        
+        for y, row in enumerate(layer_data):
+            for x, tile_id in enumerate(row):
+                if tile_id > 0:  # 0 = empty
+                    # Extract flip flags
+                    flipped_h = tile_id & FLIPPED_HORIZONTALLY_FLAG
+                    flipped_v = tile_id & FLIPPED_VERTICALLY_FLAG
+                    flipped_d = tile_id & FLIPPED_DIAGONALLY_FLAG
+                    
+                    # Remove flags to get actual tile ID
+                    tile_id = tile_id & FLAGS_MASK
+                    
+                    # Tiled uses 0-based tile IDs (try without subtracting 1)
+                    # tile_id -= 1
+                    
+                    if tile_id < 0:
+                        continue
+                    
+                    # Convert tile_id to tileset coordinates
+                    tile_x = (tile_id % self.tileset_width) * self.tileset_tile_size
+                    tile_y = (tile_id // self.tileset_width) * self.tileset_tile_size
+                    
+                    # Skip if outside tileset bounds
+                    if tile_x + self.tileset_tile_size > self.tileset.get_width() or tile_y + self.tileset_tile_size > self.tileset.get_height():
+                        print(f"Tile {tile_id} out of bounds: pos ({tile_x},{tile_y}) size {self.tileset_tile_size}, tileset {self.tileset.get_width()}x{self.tileset.get_height()}")
+                        continue
+                    
+                    # Get tile subsurface
+                    try:
+                        tile_surf = self.tileset.subsurface((tile_x, tile_y, self.tileset_tile_size, self.tileset_tile_size))
+                        # Debug first few tiles
+                        if tiles_drawn < 5:
+                            print(f"Tile {tile_id} -> coords ({tile_x},{tile_y}) -> subsurface successful")
+                    except ValueError as e:
+                        print(f"Subsurface error for tile {tile_id} at ({tile_x},{tile_y}): {e}")
+                        continue
+                    
+                    # Apply flips
+                    if flipped_h:
+                        tile_surf = pygame.transform.flip(tile_surf, True, False)
+                    if flipped_v:
+                        tile_surf = pygame.transform.flip(tile_surf, False, True)
+                    if flipped_d:
+                        tile_surf = pygame.transform.rotate(tile_surf, -90)
+                        tile_surf = pygame.transform.flip(tile_surf, True, False)
+                    
+                    # Scale to map tile size
+                    tile_surf = pygame.transform.scale(tile_surf, (self.tile_size, self.tile_size))
+                    
+                    # Screen position
+                    screen_x = x * self.tile_size - camera_x
+                    screen_y = y * self.tile_size - camera_y
+                    
+                    # Only draw if on screen
+                    if -self.tile_size < screen_x < config.SCREEN_WIDTH and -self.tile_size < screen_y < config.SCREEN_HEIGHT:
+                        screen.blit(tile_surf, (screen_x, screen_y))
+                        tiles_drawn += 1
+        
+        return tiles_drawn
+    
+    def is_collision(self, tile_x, tile_y):
+        """Check if tile is blocked"""
+        if 0 <= tile_y < len(self.collision_map) and 0 <= tile_x < len(self.collision_map[tile_y]):
+            return self.collision_map[tile_y][tile_x] > 0
+        return False
+    
+    def check_interaction(self, tile_x, tile_y):
+        """Check if player is near an interaction zone"""
+        pixel_x = tile_x * 32
+        pixel_y = tile_y * 32
+        
+        for zone_name, zone in self.interaction_zones.items():
+            if (zone['x'] <= pixel_x < zone['x'] + zone['width'] and
+                zone['y'] <= pixel_y < zone['y'] + zone['height']):
+                return zone_name
+        
+        return None
     
     def draw_labels(self, screen, camera_x, camera_y, font):
         """Draw building labels"""
@@ -174,7 +338,7 @@ class Player:
             self.direction = 'down'
         
         # Set speed based on running
-        current_speed = 4 if running else 2
+        current_speed = 12 if running else 2
         
         # Calculate new position (ensure integers)
         new_pixel_x = int(self.pixel_x + dx * current_speed)
