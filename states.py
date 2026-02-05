@@ -47,6 +47,7 @@ class MenuState(State):
         self.camera_x = 0
         self.camera_y = 0
         self.keys_held = {'up': False, 'down': False, 'left': False, 'right': False}
+        self.shift_held = False
         self.interaction_prompt = None
         self.prompt_timer = 0
         self.prompt_animation_start = 0
@@ -75,6 +76,8 @@ class MenuState(State):
                 self.keys_held['left'] = True
             elif event.key == pygame.K_RIGHT or event.key == pygame.K_d:
                 self.keys_held['right'] = True
+            elif event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT:
+                self.shift_held = True
             elif event.key == pygame.K_SPACE:
                 # Check if player is near an interaction zone
                 if self.interaction_prompt:
@@ -94,6 +97,8 @@ class MenuState(State):
                 self.keys_held['left'] = False
             elif event.key == pygame.K_RIGHT or event.key == pygame.K_d:
                 self.keys_held['right'] = False
+            elif event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT:
+                self.shift_held = False
     
     def update(self, dt):
         """Update player movement and camera"""
@@ -110,7 +115,7 @@ class MenuState(State):
         elif self.keys_held['right']:
             dx = 1
         
-        self.player.move(dx, dy, self.tilemap)
+        self.player.move(dx, dy, self.tilemap, self.shift_held)
         
         # Update camera to follow player (smooth centering) - ensure integers
         target_x = self.player.pixel_x - config.SCREEN_WIDTH // 2 + 16
