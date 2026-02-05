@@ -95,10 +95,11 @@ class Player:
         self.pixel_y = start_y * 32
         self.speed = 2
         self.animation_frame = 0
+        self.idle_animation_frame = 0
         self.direction = 'down'
         self.moving = False
         self.running = False
-        self.size = 84  # Character display size
+        self.size = 100  # Character display size
         
         # Load character sprite
         self.load_sprite()
@@ -126,6 +127,7 @@ class Player:
         """Load and extract animation frames from separate animation grids"""
         self.sprite_frames = {}
         self.sprite_frames_run = {}
+        self.sprite_frames_idle = {}
         
         # Load walk animations (8 frames per direction)
         for direction in ['down', 'up', 'right', 'left']:
@@ -144,6 +146,15 @@ class Player:
         
         if not self.sprite_frames_run:
             self.sprite_frames_run = None
+        
+        # Load idle animations (8 frames per direction)
+        for direction in ['down', 'up', 'right', 'left']:
+            frames = self.load_strip('idle.png', direction, 8)
+            if frames:
+                self.sprite_frames_idle[direction] = frames
+        
+        if not self.sprite_frames_idle:
+            self.sprite_frames_idle = None
         
     def move(self, dx, dy, tilemap, running=False):
         """Move player with collision detection"""
@@ -186,6 +197,8 @@ class Player:
             self.animation_frame = (self.animation_frame + anim_speed) % max_frames
         else:
             self.moving = False
+            # Animate idle when not moving
+            self.idle_animation_frame = (self.idle_animation_frame + 0.05) % 8
     
     def draw(self, screen, camera_x, camera_y):
         """Draw player sprite with animation"""
@@ -197,12 +210,20 @@ class Player:
         # Use loaded sprite frames if available
         if self.sprite_frames:
             # Get current frame based on direction and animation
-            max_frames = 8
-            frame_index = int(self.animation_frame) % max_frames
-            if self.running and self.sprite_frames_run:
-                current_frame = self.sprite_frames_run[self.direction][frame_index]
+            if self.moving:
+                max_frames = 8
+                frame_index = int(self.animation_frame) % max_frames
+                if self.running and self.sprite_frames_run:
+                    current_frame = self.sprite_frames_run[self.direction][frame_index]
+                else:
+                    current_frame = self.sprite_frames[self.direction][frame_index]
             else:
-                current_frame = self.sprite_frames[self.direction][frame_index]
+                # Idle animation
+                frame_index = int(self.idle_animation_frame) % 8
+                if self.sprite_frames_idle:
+                    current_frame = self.sprite_frames_idle[self.direction][frame_index]
+                else:
+                    current_frame = self.sprite_frames[self.direction][0]  # Fallback to static walk frame
             screen.blit(current_frame, (screen_x, screen_y))
         else:
             # Fallback to procedural blocky character

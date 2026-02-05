@@ -78,7 +78,7 @@ class MenuState(State):
                 self.keys_held['right'] = True
             elif event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT:
                 self.shift_held = True
-            elif event.key == pygame.K_SPACE:
+            elif event.key == pygame.K_e:
                 # Check if player is near an interaction zone
                 if self.interaction_prompt:
                     if self.interaction_prompt == 'barangay_captain':
