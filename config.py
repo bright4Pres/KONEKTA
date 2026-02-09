@@ -7,7 +7,7 @@ Contains all game constants, settings, and configuration values
 SCREEN_WIDTH = 900
 SCREEN_HEIGHT = 600
 FPS = 60
-KIOSK_MODE = False  # Set to True for deployment, False for development
+KIOSK_MODE = True  # Set to True for deployment, False for development
 
 # Resource paths
 IMAGE_PATH = 'resources/images'
@@ -18,6 +18,7 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GREEN = (34, 139, 34)
 BLUE = (0, 102, 204)
+LIGHT_BLUE = (173, 216, 230)
 RED = (220, 20, 60)
 YELLOW = (255, 215, 0)
 LIGHT_GRAY = (200, 200, 200)
@@ -208,54 +209,6 @@ SYNONYM_ANTONYM_WORDS = [
         'phil_iri_level': 'primer'
     },
     # Continue with more context-based vocabulary...
-]
-    {'word': 'hot', 'synonym': 'warm', 'antonym': 'cold', 'choices': ['warm', 'cold', 'cool', 'freezing']},
-    {'word': 'bright', 'synonym': 'brilliant', 'antonym': 'dark', 'choices': ['brilliant', 'dark', 'shiny', 'dim']},
-    {'word': 'strong', 'synonym': 'powerful', 'antonym': 'weak', 'choices': ['powerful', 'weak', 'mighty', 'feeble']},
-    {'word': 'easy', 'synonym': 'simple', 'antonym': 'difficult', 'choices': ['simple', 'difficult', 'hard', 'complex']},
-    {'word': 'new', 'synonym': 'fresh', 'antonym': 'old', 'choices': ['fresh', 'old', 'modern', 'ancient']},
-    {'word': 'rich', 'synonym': 'wealthy', 'antonym': 'poor', 'choices': ['wealthy', 'poor', 'broke', 'affluent']},
-    {'word': 'clean', 'synonym': 'spotless', 'antonym': 'dirty', 'choices': ['spotless', 'dirty', 'neat', 'filthy']},
-    {'word': 'brave', 'synonym': 'courageous', 'antonym': 'cowardly', 'choices': ['courageous', 'cowardly', 'fearless', 'timid']},
-    {'word': 'beautiful', 'synonym': 'pretty', 'antonym': 'ugly', 'choices': ['pretty', 'ugly', 'gorgeous', 'hideous']},
-    {'word': 'good', 'synonym': 'excellent', 'antonym': 'bad', 'choices': ['excellent', 'bad', 'great', 'terrible']},
-    {'word': 'smart', 'synonym': 'intelligent', 'antonym': 'stupid', 'choices': ['intelligent', 'stupid', 'clever', 'dumb']},
-    {'word': 'loud', 'synonym': 'noisy', 'antonym': 'quiet', 'choices': ['noisy', 'quiet', 'booming', 'silent']},
-    {'word': 'sweet', 'synonym': 'sugary', 'antonym': 'bitter', 'choices': ['sugary', 'bitter', 'tasty', 'sour']},
-    {'word': 'empty', 'synonym': 'vacant', 'antonym': 'full', 'choices': ['vacant', 'full', 'hollow', 'packed']},
-    {'word': 'high', 'synonym': 'tall', 'antonym': 'low', 'choices': ['tall', 'low', 'elevated', 'short']},
-    {'word': 'young', 'synonym': 'youthful', 'antonym': 'old', 'choices': ['youthful', 'old', 'juvenile', 'elderly']},
-    {'word': 'wide', 'synonym': 'broad', 'antonym': 'narrow', 'choices': ['broad', 'narrow', 'spacious', 'tight']},
-    {'word': 'thick', 'synonym': 'dense', 'antonym': 'thin', 'choices': ['dense', 'thin', 'heavy', 'slim']},
-    {'word': 'rough', 'synonym': 'coarse', 'antonym': 'smooth', 'choices': ['coarse', 'smooth', 'bumpy', 'soft']},
-    {'word': 'hard', 'synonym': 'solid', 'antonym': 'soft', 'choices': ['solid', 'soft', 'firm', 'tender']},
-    {'word': 'wet', 'synonym': 'damp', 'antonym': 'dry', 'choices': ['damp', 'dry', 'moist', 'arid']},
-    {'word': 'safe', 'synonym': 'secure', 'antonym': 'dangerous', 'choices': ['secure', 'dangerous', 'protected', 'risky']},
-    {'word': 'light', 'synonym': 'bright', 'antonym': 'heavy', 'choices': ['bright', 'heavy', 'illuminated', 'dark']},
-    {'word': 'near', 'synonym': 'close', 'antonym': 'far', 'choices': ['close', 'far', 'nearby', 'distant']},
-    {'word': 'early', 'synonym': 'prompt', 'antonym': 'late', 'choices': ['prompt', 'late', 'timely', 'delayed']},
-    {'word': 'tight', 'synonym': 'snug', 'antonym': 'loose', 'choices': ['snug', 'loose', 'firm', 'slack']},
-    {'word': 'sharp', 'synonym': 'keen', 'antonym': 'dull', 'choices': ['keen', 'dull', 'pointed', 'blunt']},
-    {'word': 'deep', 'synonym': 'profound', 'antonym': 'shallow', 'choices': ['profound', 'shallow', 'bottomless', 'superficial']},
-    {'word': 'true', 'synonym': 'genuine', 'antonym': 'false', 'choices': ['genuine', 'false', 'real', 'fake']},
-    {'word': 'kind', 'synonym': 'gentle', 'antonym': 'cruel', 'choices': ['gentle', 'cruel', 'nice', 'mean']},
-    {'word': 'cheap', 'synonym': 'inexpensive', 'antonym': 'expensive', 'choices': ['inexpensive', 'expensive', 'affordable', 'costly']},
-    {'word': 'wild', 'synonym': 'untamed', 'antonym': 'tame', 'choices': ['untamed', 'tame', 'savage', 'domesticated']},
-    {'word': 'funny', 'synonym': 'humorous', 'antonym': 'serious', 'choices': ['humorous', 'serious', 'comical', 'solemn']},
-    {'word': 'right', 'synonym': 'correct', 'antonym': 'wrong', 'choices': ['correct', 'wrong', 'accurate', 'incorrect']},
-    {'word': 'fresh', 'synonym': 'crisp', 'antonym': 'stale', 'choices': ['crisp', 'stale', 'new', 'rotten']},
-    {'word': 'calm', 'synonym': 'peaceful', 'antonym': 'stormy', 'choices': ['peaceful', 'stormy', 'serene', 'turbulent']},
-    {'word': 'modern', 'synonym': 'contemporary', 'antonym': 'ancient', 'choices': ['contemporary', 'ancient', 'current', 'archaic']},
-    {'word': 'sick', 'synonym': 'ill', 'antonym': 'healthy', 'choices': ['ill', 'healthy', 'unwell', 'fit']},
-    {'word': 'simple', 'synonym': 'plain', 'antonym': 'complex', 'choices': ['plain', 'complex', 'basic', 'complicated']},
-    {'word': 'polite', 'synonym': 'courteous', 'antonym': 'rude', 'choices': ['courteous', 'rude', 'respectful', 'impolite']},
-    {'word': 'strange', 'synonym': 'odd', 'antonym': 'normal', 'choices': ['odd', 'normal', 'weird', 'ordinary']},
-    {'word': 'famous', 'synonym': 'renowned', 'antonym': 'unknown', 'choices': ['renowned', 'unknown', 'celebrated', 'obscure']},
-    {'word': 'lazy', 'synonym': 'idle', 'antonym': 'active', 'choices': ['idle', 'active', 'sluggish', 'energetic']},
-    {'word': 'proud', 'synonym': 'confident', 'antonym': 'humble', 'choices': ['confident', 'humble', 'arrogant', 'modest']},
-    {'word': 'hungry', 'synonym': 'starving', 'antonym': 'full', 'choices': ['starving', 'full', 'famished', 'satisfied']},
-    {'word': 'scared', 'synonym': 'frightened', 'antonym': 'brave', 'choices': ['frightened', 'brave', 'terrified', 'fearless']},
-    {'word': 'angry', 'synonym': 'furious', 'antonym': 'calm', 'choices': ['furious', 'calm', 'mad', 'peaceful']},
 ]
 
 # Recipe Game - Phil-IRI Aligned Reading Comprehension

@@ -53,11 +53,13 @@ class MenuState(State):
         self.prompt_animation_start = 0
         self.student_id = config.DEFAULT_STUDENT_ID
         self.stats = {'total_gems': 0}
+        self.saved_x = self.tilemap.spawn_x
+        self.saved_y = self.tilemap.spawn_y
     
     def enter(self):
-        """Load student stats and reset player"""
+        """Load student stats and restore player position"""
         self.stats = self.game.db.get_student_stats(self.student_id)
-        self.player = Player(self.tilemap.spawn_x, self.tilemap.spawn_y)
+        self.player = Player(self.saved_x, self.saved_y)
         self.interaction_prompt = None
         
         # Center camera on player immediately
@@ -81,6 +83,9 @@ class MenuState(State):
             elif event.key == pygame.K_e or event.key == pygame.K_SPACE:
                 # Check if player is near an interaction zone
                 if self.interaction_prompt:
+                    # Save current position before entering game
+                    self.saved_x = self.player.pixel_x
+                    self.saved_y = self.player.pixel_y
                     if self.interaction_prompt == 'barangay_captain':
                         self.next_state = 'barangay'
                     elif self.interaction_prompt == 'recipe_game':
@@ -118,15 +123,17 @@ class MenuState(State):
         self.player.move(dx, dy, self.tilemap, self.shift_held)
         
         # Update camera to follow player (smooth centering) - ensure integers
-        target_x = self.player.pixel_x - config.SCREEN_WIDTH // 2 + 16
-        target_y = self.player.pixel_y - config.SCREEN_HEIGHT // 2 + 16
+        target_x = int(self.player.pixel_x - config.SCREEN_WIDTH // 2 + 16)
+        target_y = int(self.player.pixel_y - config.SCREEN_HEIGHT // 2 + 16)
         
         self.camera_x = int(self.camera_x + (target_x - self.camera_x) * 0.1)
         self.camera_y = int(self.camera_y + (target_y - self.camera_y) * 0.1)
         
-        # Clamp camera to map boundaries
-        self.camera_x = max(0, min(self.camera_x, self.tilemap.map_width - config.SCREEN_WIDTH))
-        self.camera_y = max(0, min(self.camera_y, self.tilemap.map_height - config.SCREEN_HEIGHT))
+        # Clamp camera to map boundaries (ensure map fills screen)
+        max_camera_x = max(0, self.tilemap.map_width - config.SCREEN_WIDTH)
+        max_camera_y = max(0, self.tilemap.map_height - config.SCREEN_HEIGHT)
+        self.camera_x = max(0, min(self.camera_x, max_camera_x))
+        self.camera_y = max(0, min(self.camera_y, max_camera_y))
         
         # Check if player is near an interaction zone
         new_prompt = self.tilemap.check_interaction(self.player.tile_x, self.player.tile_y)
@@ -994,7 +1001,7 @@ class BarangayCaptainState(State):
         self.font = pygame.font.Font(config.FONT_PATH, 24)  # Use Pixelify Sans
         self.title_font = pygame.font.Font(config.FONT_PATH, 36)
         self.small_font = pygame.font.Font(config.FONT_PATH, 18)
-        self.language = None  # 'english', 'filipino', 'bisaya'
+        self.language = None  # 'english', 'tagalog', 'bisaya'
         self.game_started = False
     
     def enter(self):
@@ -1016,7 +1023,7 @@ class BarangayCaptainState(State):
                     self.language = 'english'
                     self.game_started = True
                 elif event.key == pygame.K_2:
-                    self.language = 'filipino'
+                    self.language = 'tagalog'
                     self.game_started = True
                 elif event.key == pygame.K_3:
                     self.language = 'bisaya'
@@ -1024,17 +1031,19 @@ class BarangayCaptainState(State):
             elif not self.show_result:
                 if event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4]:
                     choice_index = event.key - pygame.K_1
-                    if choice_index < len(config.BARANGAY_COMPLAINTS[self.current_question]['choices']):
+                    complaint_data = config.BARANGAY_COMPLAINTS[self.current_question]
+                    complaint = complaint_data.get(self.language, complaint_data['english'])
+                    if choice_index < len(complaint['choices']):
                         self.selected_choice = choice_index
                         self.show_result = True
                         self.result_timer = time.time()
                         # Update score and happiness
-                        if choice_index == config.BARANGAY_COMPLAINTS[self.current_question]['correct']:
+                        if choice_index == complaint_data['correct']:
                             self.score += 1
                             self.feedback = "Correct! Good reading comprehension."
                         else:
                             self.feedback = "Try again. Re-read the passage carefully."
-                        self.happiness += config.BARANGAY_COMPLAINTS[self.current_question]['happiness_impact'][choice_index]
+                        self.happiness += complaint_data['happiness_impact'][choice_index]
                         self.happiness = max(0, min(100, self.happiness))  # Clamp between 0-100
             elif self.show_result and time.time() - self.result_timer > 2:  # Show result for 2 seconds
                 self.current_question += 1
@@ -1067,7 +1076,7 @@ class BarangayCaptainState(State):
             # Language options
             languages = [
                 ('1. ENGLISH', config.GREEN),
-                ('2. FILIPINO', config.ORANGE),
+                ('2. TAGALOG', config.ORANGE),
                 ('3. BISAYA/CEBUANO', config.PURPLE)
             ]
             
@@ -1146,22 +1155,23 @@ class BarangayCaptainState(State):
             pygame.draw.rect(screen, config.WHITE, passage_box)
             pygame.draw.rect(screen, config.BLACK, passage_box, 4)
             
-            # Passage text
-            passage_lines = self.wrap_text(complaint['passage'], 80)
+            # Passage text with pixel-based wrapping
+            passage_lines = self.wrap_text_pixel(complaint['passage'], config.SCREEN_WIDTH - 120, self.font)
             y = 210
             for line in passage_lines:
                 text = self.font.render(line, True, config.BLACK)
                 screen.blit(text, (60, y))
                 y += 35
             
-            # Question box
-            question_box = pygame.Rect(40, y + 10, config.SCREEN_WIDTH - 80, 60)
+            # Question box - dynamic height based on text
+            question_lines = self.wrap_text_pixel(complaint['question'], config.SCREEN_WIDTH - 120, self.font)
+            question_height = max(60, len(question_lines) * 35 + 30)
+            question_box = pygame.Rect(40, y + 10, config.SCREEN_WIDTH - 80, question_height)
             pygame.draw.rect(screen, config.BLACK, question_box.inflate(8, 8))
             pygame.draw.rect(screen, config.LIGHT_BLUE, question_box)
             pygame.draw.rect(screen, config.BLACK, question_box, 4)
             
             # Question text
-            question_lines = self.wrap_text(complaint['question'], 80)
             y = question_box.y + 15
             for line in question_lines:
                 text = self.font.render(line, True, config.BLACK)
@@ -1171,13 +1181,13 @@ class BarangayCaptainState(State):
             # Choices as retro buttons (start after question)
             y = question_box.y + question_box.height + 20
             for i, choice in enumerate(complaint['choices']):
-                choice_lines = self.wrap_text(choice, 60)
+                choice_lines = self.wrap_text_pixel(choice, config.SCREEN_WIDTH - 190, self.small_font)
                 choice_height = len(choice_lines) * 28 + 20
                 choice_box = pygame.Rect(60, y, config.SCREEN_WIDTH - 120, choice_height)
                 
                 # Determine colors based on state
                 if self.show_result:
-                    if i == complaint['correct']:
+                    if i == complaint_data['correct']:
                         bg_color = config.GREEN
                         border_color = config.WHITE
                         text_color = config.WHITE
@@ -1222,7 +1232,7 @@ class BarangayCaptainState(State):
             if self.show_result:
                 result_box = pygame.Rect(config.SCREEN_WIDTH // 2 - 150, y + 10, 300, 50)
                 pygame.draw.rect(screen, config.BLACK, result_box.inflate(8, 8))
-                if self.selected_choice == complaint['correct']:
+                if self.selected_choice == complaint_data['correct']:
                     pygame.draw.rect(screen, config.GREEN, result_box)
                     result_msg = '✓ CORRECT!'
                 else:
@@ -1274,6 +1284,7 @@ class BarangayCaptainState(State):
             screen.blit(hint_text, hint_rect)
     
     def wrap_text(self, text, max_chars):
+        """Wrap text based on character count (for compatibility)"""
         words = text.split()
         lines = []
         current_line = ''
@@ -1285,6 +1296,35 @@ class BarangayCaptainState(State):
                 current_line = word
         if current_line:
             lines.append(current_line)
+        return lines
+    
+    def wrap_text_pixel(self, text, max_width, font):
+        """Wrap text based on pixel width for better accuracy"""
+        words = text.split()
+        lines = []
+        current_line = ''
+        
+        for word in words:
+            test_line = current_line + ' ' + word if current_line else word
+            test_width = font.size(test_line)[0]
+            
+            if test_width <= max_width:
+                current_line = test_line
+            else:
+                if current_line:
+                    lines.append(current_line)
+                # Check if single word is too long
+                if font.size(word)[0] > max_width:
+                    # Word is too long, force split it
+                    current_line = word[:max_width]
+                    lines.append(current_line)
+                    current_line = word[max_width:]
+                else:
+                    current_line = word
+        
+        if current_line:
+            lines.append(current_line)
+        
         return lines
 
 
@@ -1302,7 +1342,7 @@ class RecipeGameState(State):
         self.title_font = pygame.font.Font(config.FONT_PATH, 36)
         self.small_font = pygame.font.Font(config.FONT_PATH, 18)
         self.recipe_shown = False
-        self.language = None  # 'english', 'filipino', 'bisaya'
+        self.language = None  # 'english', 'tagalog', 'bisaya'
         self.game_started = False
     
     def enter(self):
@@ -1325,7 +1365,7 @@ class RecipeGameState(State):
                     self.language = 'english'
                     self.game_started = True
                 elif event.key == pygame.K_2:
-                    self.language = 'filipino'
+                    self.language = 'tagalog'
                     self.game_started = True
                 elif event.key == pygame.K_3:
                     self.language = 'bisaya'
@@ -1384,7 +1424,7 @@ class RecipeGameState(State):
             # Language options
             languages = [
                 ('1. ENGLISH', config.GREEN),
-                ('2. FILIPINO', config.ORANGE),
+                ('2. TAGALOG', config.ORANGE),
                 ('3. BISAYA/CEBUANO', config.PURPLE)
             ]
             
@@ -1471,7 +1511,7 @@ class RecipeGameState(State):
                 screen.blit(num_text, num_rect)
                 
                 # Direction text with wrapping
-                dir_lines = self.wrap_text(direction, 50)
+                dir_lines = self.wrap_text_pixel(direction, 300, self.small_font)
                 text_y = y
                 for line in dir_lines:
                     dir_text = self.small_font.render(line, True, config.BLACK)
@@ -1522,7 +1562,7 @@ class RecipeGameState(State):
             pygame.draw.rect(screen, config.WHITE, question_box)
             pygame.draw.rect(screen, config.ORANGE, question_box, 4)
             
-            q_lines = self.wrap_text(question['q'], 75)
+            q_lines = self.wrap_text_pixel(question['q'], config.SCREEN_WIDTH - 160, self.font)
             q_y = 210
             for line in q_lines:
                 q_text = self.font.render(line, True, config.BLACK)
@@ -1533,7 +1573,7 @@ class RecipeGameState(State):
             # Choices as retro buttons
             y = 320
             for i, choice in enumerate(question['choices']):
-                choice_lines = self.wrap_text(choice, 70)
+                choice_lines = self.wrap_text_pixel(choice, config.SCREEN_WIDTH - 220, self.small_font)
                 choice_height = len(choice_lines) * 28 + 20
                 choice_box = pygame.Rect(80, y, config.SCREEN_WIDTH - 160, choice_height)
                 
@@ -1637,6 +1677,35 @@ class RecipeGameState(State):
         if current_line:
             lines.append(current_line)
         return lines
+    
+    def wrap_text_pixel(self, text, max_width, font):
+        """Wrap text based on pixel width for better accuracy"""
+        words = text.split()
+        lines = []
+        current_line = ''
+        
+        for word in words:
+            test_line = current_line + ' ' + word if current_line else word
+            test_width = font.size(test_line)[0]
+            
+            if test_width <= max_width:
+                current_line = test_line
+            else:
+                if current_line:
+                    lines.append(current_line)
+                # Check if single word is too long
+                if font.size(word)[0] > max_width:
+                    # Word is too long, force split it
+                    current_line = word[:max_width]
+                    lines.append(current_line)
+                    current_line = word[max_width:]
+                else:
+                    current_line = word
+        
+        if current_line:
+            lines.append(current_line)
+        
+        return lines
 
 
 class SynonymAntonymState(State):
@@ -1680,7 +1749,7 @@ class SynonymAntonymState(State):
                     self.language = 'english'
                     self.game_started = True
                 elif event.key == pygame.K_2:
-                    self.language = 'filipino'
+                    self.language = 'tagalog'
                     self.game_started = True
                 elif event.key == pygame.K_3:
                     self.language = 'bisaya'
@@ -1731,7 +1800,7 @@ class SynonymAntonymState(State):
             
             languages = [
                 ('1. ENGLISH', config.GREEN),
-                ('2. FILIPINO', config.ORANGE),
+                ('2. TAGALOG', config.ORANGE),
                 ('3. BISAYA/CEBUANO', config.PURPLE)
             ]
             
@@ -1795,7 +1864,7 @@ class SynonymAntonymState(State):
             pygame.draw.rect(screen, config.PURPLE, context_box, 3)
             
             # Context text
-            context_lines = self.wrap_text(question['context'], 60)
+            context_lines = self.wrap_text_pixel(question['context'], config.SCREEN_WIDTH - 240, self.small_font)
             y = 190
             for line in context_lines:
                 context_text = self.small_font.render(line, True, config.BLACK)
@@ -1806,7 +1875,7 @@ class SynonymAntonymState(State):
             word_box = pygame.Rect(100, 280, config.SCREEN_WIDTH - 200, 60)
             pygame.draw.rect(screen, config.BLACK, word_box.inflate(8, 8))
             pygame.draw.rect(screen, config.WHITE, word_box)
-            pygam6.draw.rect(screen, config.PURPLE, word_box, 5)
+            pygame.draw.rect(screen, config.PURPLE, word_box, 5)
             
             # Word and question type
             word_text = self.title_font.render(question['word'].upper(), True, config.PURPLE)

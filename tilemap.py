@@ -152,11 +152,11 @@ class Tilemap:
         FLIPPED_DIAGONALLY_FLAG = 0x20000000
         FLAGS_MASK = ~(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG)
         
-        # Calculate visible tile range for culling
-        start_x = max(0, camera_x // self.tile_size)
-        start_y = max(0, camera_y // self.tile_size)
-        end_x = min(len(layer_data[0]), (camera_x + config.SCREEN_WIDTH) // self.tile_size + 1)
-        end_y = min(len(layer_data), (camera_y + config.SCREEN_HEIGHT) // self.tile_size + 1)
+        # Calculate visible tile range for culling (add extra tiles to prevent gaps)
+        start_x = max(0, camera_x // self.tile_size - 1)
+        start_y = max(0, camera_y // self.tile_size - 1)
+        end_x = min(len(layer_data[0]), (camera_x + config.SCREEN_WIDTH) // self.tile_size + 2)
+        end_y = min(len(layer_data), (camera_y + config.SCREEN_HEIGHT) // self.tile_size + 2)
         
         for y in range(start_y, end_y):
             row = layer_data[y]
@@ -211,8 +211,8 @@ class Tilemap:
                     
                     # Draw cached tile (if not None)
                     if self.tile_cache[cache_key] is not None:
-                        screen_x = x * self.tile_size - camera_x
-                        screen_y = y * self.tile_size - camera_y
+                        screen_x = int(x * self.tile_size - camera_x)
+                        screen_y = int(y * self.tile_size - camera_y)
                         screen.blit(self.tile_cache[cache_key], (screen_x, screen_y))
     
     def is_collision(self, tile_x, tile_y):
