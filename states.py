@@ -1031,6 +1031,9 @@ class BarangayCaptainState(State):
                         # Update score and happiness
                         if choice_index == config.BARANGAY_COMPLAINTS[self.current_question]['correct']:
                             self.score += 1
+                            self.feedback = "Correct! Good reading comprehension."
+                        else:
+                            self.feedback = "Try again. Re-read the passage carefully."
                         self.happiness += config.BARANGAY_COMPLAINTS[self.current_question]['happiness_impact'][choice_index]
                         self.happiness = max(0, min(100, self.happiness))  # Clamp between 0-100
             elif self.show_result and time.time() - self.result_timer > 2:  # Show result for 2 seconds
@@ -1089,7 +1092,8 @@ class BarangayCaptainState(State):
             screen.blit(hint_text, hint_rect)
             
         elif self.current_question < len(config.BARANGAY_COMPLAINTS):
-            complaint = config.BARANGAY_COMPLAINTS[self.current_question]
+            complaint_data = config.BARANGAY_COMPLAINTS[self.current_question]
+            complaint = complaint_data.get(self.language, complaint_data['english'])  # Fallback to English
             
             # Pixel-style title box
             title_box = pygame.Rect(20, 20, config.SCREEN_WIDTH - 40, 70)
@@ -1136,22 +1140,36 @@ class BarangayCaptainState(State):
             score_text = self.small_font.render(f'Correct: {self.score}', True, config.YELLOW)
             screen.blit(score_text, (690, info_y + 15))
             
-            # Complaint box (speech bubble style)
-            complaint_box = pygame.Rect(40, 190, config.SCREEN_WIDTH - 80, 140)
-            pygame.draw.rect(screen, config.BLACK, complaint_box.inflate(8, 8))
-            pygame.draw.rect(screen, config.WHITE, complaint_box)
-            pygame.draw.rect(screen, config.BLACK, complaint_box, 4)
+            # Reading passage box (larger for Phil-IRI alignment)
+            passage_box = pygame.Rect(40, 190, config.SCREEN_WIDTH - 80, 180)
+            pygame.draw.rect(screen, config.BLACK, passage_box.inflate(8, 8))
+            pygame.draw.rect(screen, config.WHITE, passage_box)
+            pygame.draw.rect(screen, config.BLACK, passage_box, 4)
             
-            # Complaint text
-            complaint_lines = self.wrap_text(complaint['complaint'], 80)
+            # Passage text
+            passage_lines = self.wrap_text(complaint['passage'], 80)
             y = 210
-            for line in complaint_lines:
+            for line in passage_lines:
                 text = self.font.render(line, True, config.BLACK)
                 screen.blit(text, (60, y))
                 y += 35
             
-            # Choices as retro buttons
-            y = 360
+            # Question box
+            question_box = pygame.Rect(40, y + 10, config.SCREEN_WIDTH - 80, 60)
+            pygame.draw.rect(screen, config.BLACK, question_box.inflate(8, 8))
+            pygame.draw.rect(screen, config.LIGHT_BLUE, question_box)
+            pygame.draw.rect(screen, config.BLACK, question_box, 4)
+            
+            # Question text
+            question_lines = self.wrap_text(complaint['question'], 80)
+            y = question_box.y + 15
+            for line in question_lines:
+                text = self.font.render(line, True, config.BLACK)
+                screen.blit(text, (60, y))
+                y += 35
+            
+            # Choices as retro buttons (start after question)
+            y = question_box.y + question_box.height + 20
             for i, choice in enumerate(complaint['choices']):
                 choice_lines = self.wrap_text(choice, 60)
                 choice_height = len(choice_lines) * 28 + 20
@@ -1341,7 +1359,14 @@ class RecipeGameState(State):
             color_val = int(220 + (i / config.SCREEN_HEIGHT) * 35)
             pygame.draw.rect(screen, (color_val, color_val - 30, color_val - 80), (0, i, config.SCREEN_WIDTH, 1))
         
-        recipe = config.RECIPES[self.current_recipe]
+        recipe_data = config.RECIPES[self.current_recipe]
+        recipe = {
+            'title': recipe_data['title'].get(self.language, recipe_data['title']['english']),
+            'description': recipe_data['description'].get(self.language, recipe_data['description']['english']),
+            'ingredients': recipe_data['ingredients'].get(self.language, recipe_data['ingredients']['english']),
+            'directions': recipe_data['directions'].get(self.language, recipe_data['directions']['english']),
+            'questions': recipe_data['questions'].get(self.language, recipe_data['questions']['english'])
+        }
         
         if not self.game_started:
             # Language selection screen
@@ -1729,7 +1754,14 @@ class SynonymAntonymState(State):
             screen.blit(hint_text, hint_rect)
             
         elif self.current_question < len(self.questions):
-            question = self.questions[self.current_question]
+            question_data = self.questions[self.current_question]
+            question = {
+                'context': question_data['context'].get(self.language, question_data['context']['english']),
+                'word': question_data['word'].get(self.language, question_data['word']['english']),
+                'synonym': question_data['synonym'].get(self.language, question_data['synonym']['english']),
+                'antonym': question_data['antonym'].get(self.language, question_data['antonym']['english']),
+                'choices': question_data['choices'].get(self.language, question_data['choices']['english'])
+            }
             q_type = self.question_type[self.current_question]
             
             # Title box
@@ -1756,20 +1788,34 @@ class SynonymAntonymState(State):
             score_text = self.small_font.render(f'Score: {self.score}', True, config.YELLOW)
             screen.blit(score_text, (config.SCREEN_WIDTH - 210, 132))
             
-            # Question box
-            question_box = pygame.Rect(100, 200, config.SCREEN_WIDTH - 200, 120)
-            pygame.draw.rect(screen, config.BLACK, question_box.inflate(8, 8))
-            pygame.draw.rect(screen, config.WHITE, question_box)
-            pygame.draw.rect(screen, config.PURPLE, question_box, 5)
+            # Context sentence box
+            context_box = pygame.Rect(100, 180, config.SCREEN_WIDTH - 200, 80)
+            pygame.draw.rect(screen, config.BLACK, context_box.inflate(8, 8))
+            pygame.draw.rect(screen, config.LIGHT_BLUE, context_box)
+            pygame.draw.rect(screen, config.PURPLE, context_box, 3)
+            
+            # Context text
+            context_lines = self.wrap_text(question['context'], 60)
+            y = 190
+            for line in context_lines:
+                context_text = self.small_font.render(line, True, config.BLACK)
+                screen.blit(context_text, (120, y))
+                y += 20
+            
+            # Word box
+            word_box = pygame.Rect(100, 280, config.SCREEN_WIDTH - 200, 60)
+            pygame.draw.rect(screen, config.BLACK, word_box.inflate(8, 8))
+            pygame.draw.rect(screen, config.WHITE, word_box)
+            pygam6.draw.rect(screen, config.PURPLE, word_box, 5)
             
             # Word and question type
             word_text = self.title_font.render(question['word'].upper(), True, config.PURPLE)
-            word_rect = word_text.get_rect(center=(config.SCREEN_WIDTH // 2, 240))
+            word_rect = word_text.get_rect(center=(config.SCREEN_WIDTH // 2, 310))
             screen.blit(word_text, word_rect)
             
             prompt = f"Select the {q_type.upper()}"
             prompt_text = self.font.render(prompt, True, config.BLACK)
-            prompt_rect = prompt_text.get_rect(center=(config.SCREEN_WIDTH // 2, 285))
+            prompt_rect = prompt_text.get_rect(center=(config.SCREEN_WIDTH // 2, 335))
             screen.blit(prompt_text, prompt_rect)
             
             # Choices
