@@ -10,7 +10,7 @@ FPS = 60
 KIOSK_MODE = True  # Set to True for deployment, False for development
 
 # Resource paths (defined at bottom of file with RESOURCES_PATH)
-ru
+
 # Colors (High contrast for accessibility)
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
