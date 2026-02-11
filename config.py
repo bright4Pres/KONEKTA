@@ -6,7 +6,7 @@ Contains all game constants, settings, and configuration values
 # Screen settings
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1200
-FPS = 30
+FPS = 60
 KIOSK_MODE = True  # Set to True for deployment, False for development
 
 # Resource paths (defined at bottom of file with RESOURCES_PATH)
