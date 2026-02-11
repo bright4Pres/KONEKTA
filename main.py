@@ -25,10 +25,15 @@ class Game:
         
         # Screen setup
         if config.KIOSK_MODE:
+            # Get native fullscreen resolution
+            infoObject = pygame.display.Info()
             self.screen = pygame.display.set_mode(
-                (config.SCREEN_WIDTH, config.SCREEN_HEIGHT),
+                (infoObject.current_w, infoObject.current_h),
                 pygame.FULLSCREEN
             )
+            # Update config with actual screen dimensions
+            config.SCREEN_WIDTH = self.screen.get_width()
+            config.SCREEN_HEIGHT = self.screen.get_height()
         else:
             self.screen = pygame.display.set_mode(
                 (config.SCREEN_WIDTH, config.SCREEN_HEIGHT)

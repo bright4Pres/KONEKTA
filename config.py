@@ -4,15 +4,13 @@ Contains all game constants, settings, and configuration values
 """
 
 # Screen settings
-SCREEN_WIDTH = 900
-SCREEN_HEIGHT = 600
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1200
 FPS = 60
 KIOSK_MODE = True  # Set to True for deployment, False for development
 
-# Resource paths
-IMAGE_PATH = 'resources/images'
-AUDIO_PATH = 'resources/audio'
-
+# Resource paths (defined at bottom of file with RESOURCES_PATH)
+ru
 # Colors (High contrast for accessibility)
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -21,7 +19,7 @@ BLUE = (0, 102, 204)
 LIGHT_BLUE = (173, 216, 230)
 RED = (220, 20, 60)
 YELLOW = (255, 215, 0)
-LIGHT_GRAY = (200, 200, 200)
+LIGHT_GRAY = (200, 200, 200)    
 DARK_GRAY = (100, 100, 100)
 ORANGE = (255, 140, 0)
 PURPLE = (128, 0, 128)

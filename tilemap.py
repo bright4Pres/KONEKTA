@@ -6,6 +6,7 @@ Loads CSV layers and tileset for proper depth layering
 import pygame
 import os
 import csv
+import random
 import config
 
 class Tilemap:
@@ -65,15 +66,14 @@ class Tilemap:
         if 'gamedesignation' in self.layers:
             self.process_gamedesignation()
         
-        # Find spawn position on land
+        # Find spawn position on land (needed before randomizing games)
         self.spawn_x, self.spawn_y = self.find_spawn_position()
         
-        # Building labels (keep for now, could be moved to gamedesignation)
-        self.labels = [
-            {'text': 'Barangay Captain', 'x': 300, 'y': 180, 'color': config.BLUE},
-            {'text': 'Recipe Game', 'x': 600, 'y': 280, 'color': config.RED},
-            {'text': 'Word Match', 'x': 450, 'y': 430, 'color': config.PURPLE}
-        ]
+        # Randomize recipe and word game positions on land
+        self.randomize_game_positions()
+        
+        # Update labels to match actual zone positions
+        self.update_labels()
     
     def load_csv_layer(self, csv_path):
         """Load a CSV layer into a 2D list"""
@@ -107,6 +107,104 @@ class Tilemap:
                             'height': self.tile_size
                         }
                         print(f"Found interaction zone '{zone_name}' at tile ({x}, {y})")
+    
+    def get_valid_land_tiles(self):
+        """Get a list of all walkable land tiles (not collision, not water)"""
+        valid_tiles = []
+        
+        if 'land' not in self.layers or 'collision' not in self.layers:
+            return valid_tiles
+        
+        land_layer = self.layers['land']
+        collision_layer = self.layers['collision']
+        
+        for y, row in enumerate(land_layer):
+            for x, tile_id in enumerate(row):
+                # Check if there's a land tile and no collision
+                if tile_id > 0 and collision_layer[y][x] == 0:
+                    valid_tiles.append((x, y))
+        
+        return valid_tiles
+    
+    def randomize_game_positions(self):
+        """Randomly place recipe_game and synonym_antonym on valid land tiles"""
+        valid_tiles = self.get_valid_land_tiles()
+        
+        if len(valid_tiles) < 2:
+            print("Warning: Not enough valid tiles to place games")
+            return
+        
+        # Remove tiles that would be too close to spawn or existing zones
+        filtered_tiles = []
+        for x, y in valid_tiles:
+            # Check distance from spawn
+            if abs(x - self.spawn_x) <= 3 and abs(y - self.spawn_y) <= 3:
+                continue
+            
+            # Check distance from existing zones (like barangay_captain)
+            too_close = False
+            for zone_name, zone in self.interaction_zones.items():
+                zone_tile_x = zone['x'] // self.tile_size
+                zone_tile_y = zone['y'] // self.tile_size
+                if abs(x - zone_tile_x) <= 5 and abs(y - zone_tile_y) <= 5:
+                    too_close = True
+                    break
+            
+            if not too_close:
+                filtered_tiles.append((x, y))
+        
+        # If filtering removed too many tiles, use less strict filtering
+        if len(filtered_tiles) < 2:
+            filtered_tiles = [
+                (x, y) for x, y in valid_tiles 
+                if abs(x - self.spawn_x) > 2 or abs(y - self.spawn_y) > 2
+            ]
+        
+        # Randomly select positions for recipe_game and synonym_antonym
+        if len(filtered_tiles) >= 2:
+            selected_tiles = random.sample(filtered_tiles, 2)
+            
+            # Place recipe_game
+            recipe_x, recipe_y = selected_tiles[0]
+            self.interaction_zones['recipe_game'] = {
+                'x': recipe_x * self.tile_size,
+                'y': recipe_y * self.tile_size,
+                'width': self.tile_size,
+                'height': self.tile_size
+            }
+            print(f"Placed recipe_game at tile ({recipe_x}, {recipe_y})")
+            
+            # Place synonym_antonym
+            word_x, word_y = selected_tiles[1]
+            self.interaction_zones['synonym_antonym'] = {
+                'x': word_x * self.tile_size,
+                'y': word_y * self.tile_size,
+                'width': self.tile_size,
+                'height': self.tile_size
+            }
+            print(f"Placed synonym_antonym at tile ({word_x}, {word_y})")
+        else:
+            print("Warning: Could not find suitable positions for games")
+    
+    def update_labels(self):
+        """Update label positions to match interaction zones"""
+        self.labels = []
+        
+        zone_label_map = {
+            'barangay_captain': {'text': 'Barangay Captain', 'color': config.BLUE},
+            'recipe_game': {'text': 'Recipe Game', 'color': config.RED},
+            'synonym_antonym': {'text': 'Word Match', 'color': config.PURPLE}
+        }
+        
+        for zone_name, zone in self.interaction_zones.items():
+            if zone_name in zone_label_map:
+                label_info = zone_label_map[zone_name]
+                self.labels.append({
+                    'text': label_info['text'],
+                    'x': zone['x'],
+                    'y': zone['y'] - 10,  # Place label slightly above the zone
+                    'color': label_info['color']
+                })
     
     def find_spawn_position(self):
         """Find a suitable spawn position on land, not blocked"""
@@ -351,7 +449,7 @@ class Player:
             self.direction = 'down'
         
         # Set speed based on running
-        current_speed = 5 if running else 2
+        current_speed = 10 if running else 2
         
         # Calculate new position (ensure integers)
         new_pixel_x = int(self.pixel_x + dx * current_speed)
