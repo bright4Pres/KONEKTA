@@ -10,9 +10,7 @@ from database import Database
 from tilemap import Tilemap, Player
 
 
-# ---------------------------------------------------------------------------
 # Base state (other states inherit from this)
-# ---------------------------------------------------------------------------
 
 class State:
     """base class that all states inherit from"""
@@ -126,9 +124,7 @@ class State:
         return None
 
 
-# ---------------------------------------------------------------------------
 # Menu (the overworld map)
-# ---------------------------------------------------------------------------
 
 class MenuState(State):
     """the overworld map where you walk around"""
@@ -312,9 +308,7 @@ class MenuState(State):
         screen.blit(stxt, sr)
 
 
-# ---------------------------------------------------------------------------
 # Teacher Screen
-# ---------------------------------------------------------------------------
 
 class TeacherDashboardState(State):
     """password protected screen to see student progress"""
@@ -392,9 +386,7 @@ class TeacherDashboardState(State):
             screen.blit(esc, (50, config.SCREEN_HEIGHT - 50))
 
 
-# ---------------------------------------------------------------------------
 # Barangay Captain Game
-# ---------------------------------------------------------------------------
 
 class BarangayCaptainState(State):
     """the barangay captain reading game"""
@@ -636,10 +628,7 @@ class BarangayCaptainState(State):
         screen.blit(hint, hint.get_rect(center=(config.SCREEN_WIDTH // 2, 480)))
 
 
-# ---------------------------------------------------------------------------
 # Recipe Game
-# ---------------------------------------------------------------------------
-
 class RecipeGameState(State):
     """recipe reading game"""
 
@@ -909,9 +898,7 @@ class RecipeGameState(State):
         screen.blit(h, h.get_rect(center=(config.SCREEN_WIDTH // 2, 480)))
 
 
-# ---------------------------------------------------------------------------
 # Synonym / Antonym Game
-# ---------------------------------------------------------------------------
 
 class SynonymAntonymState(State):
     """the synonym and antonym word game"""
