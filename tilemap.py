@@ -423,6 +423,7 @@ class Player:
         self.target_tile_x = start_x
         self.target_tile_y = start_y
         self.move_progress = 0.0   # goes from 0 to 1 as player moves to next tile
+        self.anim_time = 0.0       # keeps going across tiles so animation doesnt reset
         
         # load the sprites
         self.load_sprite()
@@ -510,11 +511,13 @@ class Player:
         if not self.moving:
             self.idle_animation_frame = (self.idle_animation_frame + 0.05) % 8
             self.animation_frame = 0  # reset walk frame when idle
+            self.anim_time = 0.0
             return
 
         # run = 8 tiles per sec, walk = 4 tiles per sec
         tiles_per_sec = 8.0 if self.running else 4.0
         self.move_progress += tiles_per_sec * dt
+        self.anim_time += dt
 
         if self.move_progress >= 1.0:
             # snap to tile when done
@@ -533,9 +536,9 @@ class Player:
             self.pixel_x = int(start_px + (end_px - start_px) * self.move_progress)
             self.pixel_y = int(start_py + (end_py - start_py) * self.move_progress)
 
-        # 2 frames per tile step (left foot right foot basically)
-        # int() makes it switch frames instead of blend
-        self.animation_frame = int(self.move_progress * 2) % 8
+        # 8 fps walk animation - runs continuously across tiles
+        frame_rate = 14.0 if self.running else 8.0
+        self.animation_frame = int(self.anim_time * frame_rate) % 8
     
     def draw(self, screen, camera_x, camera_y):
         """draw the player"""
