@@ -249,6 +249,9 @@ class Tilemap:
         print("No suitable spawn found, using default (10, 8)")
         return 10, 8
     
+    # layers drawn on top of the player
+    FRONT_LAYERS = {'object_front_low', 'object_front_high', 'shadow'}
+
     def draw(self, screen, camera_x, camera_y):
         """draw the map with camera offset"""
         camera_x = int(camera_x)
@@ -260,6 +263,26 @@ class Tilemap:
         # draw each layer from bottom to top
         for layer_name in self.layer_order:
             if layer_name in self.layers:
+                self.draw_layer(screen, self.layers[layer_name], camera_x, camera_y)
+
+    def draw_back(self, screen, camera_x, camera_y):
+        """draw layers that go behind the player"""
+        camera_x = int(camera_x)
+        camera_y = int(camera_y)
+        if not self.tileset:
+            return
+        for layer_name in self.layer_order:
+            if layer_name not in self.FRONT_LAYERS and layer_name in self.layers:
+                self.draw_layer(screen, self.layers[layer_name], camera_x, camera_y)
+
+    def draw_front(self, screen, camera_x, camera_y):
+        """draw layers that go in front of the player"""
+        camera_x = int(camera_x)
+        camera_y = int(camera_y)
+        if not self.tileset:
+            return
+        for layer_name in self.layer_order:
+            if layer_name in self.FRONT_LAYERS and layer_name in self.layers:
                 self.draw_layer(screen, self.layers[layer_name], camera_x, camera_y)
     
     def draw_layer(self, screen, layer_data, camera_x, camera_y):

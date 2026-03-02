@@ -241,8 +241,9 @@ class MenuState(State):
 
     def draw(self, screen):
         screen.fill((135, 206, 235))
-        self.tilemap.draw(screen, self.camera_x, self.camera_y)
+        self.tilemap.draw_back(screen, self.camera_x, self.camera_y)
         self.player.draw(screen, self.camera_x, self.camera_y)
+        self.tilemap.draw_front(screen, self.camera_x, self.camera_y)
         self.tilemap.draw_labels(screen, self.camera_x, self.camera_y,
                                  self.game.font_small)
 
