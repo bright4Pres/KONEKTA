@@ -27,10 +27,20 @@ class Tilemap:
             print(f"Tileset not found: {tileset_path}")
         
         # Layer order (drawing order, bottom to top)
+        # Visual layers in drawing order (bottom to top)
         self.layer_order = [
-            'water', 'under', 'shadow_under', 'land', 'path', 'bridge', 'over', 
-            'waterfall', 'items', 'gamedesignation', 'sign', 'house1', 'house', 
-            'front', 'trees', 'rocks', 'shadow'
+            'water', 'under', 'shadow_under', 'ground',
+            'object_back_low', 'object_back_high', 'decal_back',
+            'shadow_mid', 'object_front_low', 'object_front_high', 'shadow'
+        ]
+        
+        # All layers to load (visual + logic), in full map order
+        all_layers = [
+            'water', 'under', 'shadow_under', 'ground',
+            'object_back_low', 'object_back_high', 'decal_back',
+            'spawnpoint', 'bc_gamedesignation', 'recipe_gamedesignation', 'word_gamedesignation',
+            'shadow_mid', 'object_front_low', 'object_front_high', 'shadow',
+            'collision'
         ]
         
         # Load layers
@@ -38,8 +48,8 @@ class Tilemap:
         self.collision_map = []
         konekta_path = f'{config.RESOURCES_PATH}/konekta'
         
-        for layer_name in self.layer_order + ['collision', 'gamedesignation']:
-            csv_path = f'{konekta_path}/konekta_{layer_name}.csv'
+        for layer_name in all_layers:
+            csv_path = f'{konekta_path}/konekta._{layer_name}.csv'
             if os.path.exists(csv_path):
                 self.layers[layer_name] = self.load_csv_layer(csv_path)
                 # Debug: count non-empty tiles
@@ -61,10 +71,9 @@ class Tilemap:
         if 'collision' in self.layers:
             self.collision_map = self.layers['collision']
         
-        # Process gamedesignation for interaction zones
+        # Process gamedesignation layers for interaction zones
         self.interaction_zones = {}
-        if 'gamedesignation' in self.layers:
-            self.process_gamedesignation()
+        self.process_gamedesignation()
         
         # Find spawn position on land (needed before randomizing games)
         self.spawn_x, self.spawn_y = self.find_spawn_position()
@@ -76,30 +85,42 @@ class Tilemap:
         self.update_labels()
     
     def load_csv_layer(self, csv_path):
-        """Load a CSV layer into a 2D list"""
+        """Load a CSV layer into a 2D list.
+        
+        Tiled uses -1 for empty and may write flipped tiles as large negative
+        numbers (signed 32-bit overflow).  We convert every value to unsigned
+        32-bit so the flip-flag bitmask logic works correctly.
+        """
         layer = []
         with open(csv_path, 'r') as f:
             reader = csv.reader(f)
             for row in reader:
-                layer.append([int(cell) if cell and cell != '-1' else 0 for cell in row])
+                parsed = []
+                for cell in row:
+                    cell = cell.strip()
+                    if not cell or cell == '-1':
+                        parsed.append(0)           # empty tile
+                    else:
+                        parsed.append(int(cell) & 0xFFFFFFFF)  # unsigned 32-bit
+                layer.append(parsed)
         return layer
     
     def process_gamedesignation(self):
-        """Process gamedesignation layer for interaction zones"""
-        # Map tile IDs to game zone names
-        tile_to_zone = {
-            70: 'barangay_captain',  # Tile ID 70 = Barangay Captain game
-            71: 'recipe_game',        # Tile ID 71 = Recipe game (if you add it later)
-            72: 'word_match'          # Tile ID 72 = Word match (if you add it later)
+        """Process separate gamedesignation layers for interaction zones"""
+        # Each CSV marks its dedicated zone; first non-empty tile sets the zone anchor
+        layer_to_zone = {
+            'bc_gamedesignation':     'barangay_captain',
+            'recipe_gamedesignation': 'recipe_game',
+            'word_gamedesignation':   'synonym_antonym',
         }
         
-        layer = self.layers['gamedesignation']
-        for y, row in enumerate(layer):
-            for x, tile_id in enumerate(row):
-                if tile_id in tile_to_zone:
-                    zone_name = tile_to_zone[tile_id]
-                    # Store tile position as interaction zone
-                    if zone_name not in self.interaction_zones:
+        for layer_name, zone_name in layer_to_zone.items():
+            if layer_name not in self.layers:
+                continue
+            layer = self.layers[layer_name]
+            for y, row in enumerate(layer):
+                for x, tile_id in enumerate(row):
+                    if tile_id > 0 and zone_name not in self.interaction_zones:
                         self.interaction_zones[zone_name] = {
                             'x': x * self.tile_size,
                             'y': y * self.tile_size,
@@ -112,10 +133,10 @@ class Tilemap:
         """Get a list of all walkable land tiles (not collision, not water)"""
         valid_tiles = []
         
-        if 'land' not in self.layers or 'collision' not in self.layers:
+        if 'ground' not in self.layers or 'collision' not in self.layers:
             return valid_tiles
         
-        land_layer = self.layers['land']
+        land_layer = self.layers['ground']
         collision_layer = self.layers['collision']
         
         for y, row in enumerate(land_layer):
@@ -127,62 +148,56 @@ class Tilemap:
         return valid_tiles
     
     def randomize_game_positions(self):
-        """Randomly place recipe_game and synonym_antonym on valid land tiles"""
+        """Place recipe_game and synonym_antonym from CSV data; fall back to random land tiles."""
+        # If both zones were already loaded from their CSVs, nothing to do
+        needs_recipe  = 'recipe_game'    not in self.interaction_zones
+        needs_synonym = 'synonym_antonym' not in self.interaction_zones
+        
+        if not needs_recipe and not needs_synonym:
+            print("Game positions loaded from CSV; no randomisation needed.")
+            return
+        
         valid_tiles = self.get_valid_land_tiles()
         
-        if len(valid_tiles) < 2:
+        zones_needed = [z for z, flag in [
+            ('recipe_game', needs_recipe), ('synonym_antonym', needs_synonym)
+        ] if flag]
+        
+        if len(valid_tiles) < len(zones_needed):
             print("Warning: Not enough valid tiles to place games")
             return
         
-        # Remove tiles that would be too close to spawn or existing zones
+        # Remove tiles too close to spawn or existing zones
         filtered_tiles = []
         for x, y in valid_tiles:
-            # Check distance from spawn
             if abs(x - self.spawn_x) <= 3 and abs(y - self.spawn_y) <= 3:
                 continue
-            
-            # Check distance from existing zones (like barangay_captain)
             too_close = False
-            for zone_name, zone in self.interaction_zones.items():
+            for zone in self.interaction_zones.values():
                 zone_tile_x = zone['x'] // self.tile_size
                 zone_tile_y = zone['y'] // self.tile_size
                 if abs(x - zone_tile_x) <= 5 and abs(y - zone_tile_y) <= 5:
                     too_close = True
                     break
-            
             if not too_close:
                 filtered_tiles.append((x, y))
         
-        # If filtering removed too many tiles, use less strict filtering
-        if len(filtered_tiles) < 2:
+        if len(filtered_tiles) < len(zones_needed):
             filtered_tiles = [
-                (x, y) for x, y in valid_tiles 
+                (x, y) for x, y in valid_tiles
                 if abs(x - self.spawn_x) > 2 or abs(y - self.spawn_y) > 2
             ]
         
-        # Randomly select positions for recipe_game and synonym_antonym
-        if len(filtered_tiles) >= 2:
-            selected_tiles = random.sample(filtered_tiles, 2)
-            
-            # Place recipe_game
-            recipe_x, recipe_y = selected_tiles[0]
-            self.interaction_zones['recipe_game'] = {
-                'x': recipe_x * self.tile_size,
-                'y': recipe_y * self.tile_size,
-                'width': self.tile_size,
-                'height': self.tile_size
-            }
-            print(f"Placed recipe_game at tile ({recipe_x}, {recipe_y})")
-            
-            # Place synonym_antonym
-            word_x, word_y = selected_tiles[1]
-            self.interaction_zones['synonym_antonym'] = {
-                'x': word_x * self.tile_size,
-                'y': word_y * self.tile_size,
-                'width': self.tile_size,
-                'height': self.tile_size
-            }
-            print(f"Placed synonym_antonym at tile ({word_x}, {word_y})")
+        if len(filtered_tiles) >= len(zones_needed):
+            selected_tiles = random.sample(filtered_tiles, len(zones_needed))
+            for zone_name, (tx, ty) in zip(zones_needed, selected_tiles):
+                self.interaction_zones[zone_name] = {
+                    'x': tx * self.tile_size,
+                    'y': ty * self.tile_size,
+                    'width': self.tile_size,
+                    'height': self.tile_size
+                }
+                print(f"Placed {zone_name} at tile ({tx}, {ty})")
         else:
             print("Warning: Could not find suitable positions for games")
     
@@ -207,9 +222,17 @@ class Tilemap:
                 })
     
     def find_spawn_position(self):
-        """Find a suitable spawn position on land, not blocked"""
-        # Try to find center of map with tiles
-        for layer_name in ['land', 'path', 'water']:
+        """Find a suitable spawn position using spawnpoint layer, then ground, then fallback"""
+        # Prefer explicit spawnpoint CSV
+        if 'spawnpoint' in self.layers:
+            for y, row in enumerate(self.layers['spawnpoint']):
+                for x, tile_id in enumerate(row):
+                    if tile_id > 0:
+                        print(f"Found spawn on spawnpoint layer at ({x}, {y})")
+                        return x, y
+        
+        # Fall back to first ground tile
+        for layer_name in ['ground', 'water']:
             if layer_name in self.layers:
                 layer = self.layers[layer_name]
                 for y, row in enumerate(layer):
@@ -260,7 +283,7 @@ class Tilemap:
             row = layer_data[y]
             for x in range(start_x, end_x):
                 tile_id = row[x]
-                if tile_id > 0:  # 0 = empty
+                if tile_id != 0:  # 0 = empty
                     # Create cache key with flip flags
                     cache_key = tile_id
                     
@@ -274,13 +297,15 @@ class Tilemap:
                         # Remove flags to get actual tile ID
                         clean_tile_id = tile_id & FLAGS_MASK
                         
-                        if clean_tile_id < 0:
+                        # This tileset uses firstgid=0 (0-based GIDs directly)
+                        idx = clean_tile_id
+                        if idx < 0:
                             self.tile_cache[cache_key] = None
                             continue
                         
-                        # Convert tile_id to tileset coordinates
-                        tile_x = (clean_tile_id % self.tileset_width) * self.tileset_tile_size
-                        tile_y = (clean_tile_id // self.tileset_width) * self.tileset_tile_size
+                        # Convert 0-based index to tileset coordinates
+                        tile_x = (idx % self.tileset_width) * self.tileset_tile_size
+                        tile_y = (idx // self.tileset_width) * self.tileset_tile_size
                         
                         # Skip if outside tileset bounds
                         if tile_x + self.tileset_tile_size > self.tileset.get_width() or tile_y + self.tileset_tile_size > self.tileset.get_height():
@@ -373,6 +398,11 @@ class Player:
         self.moving = False
         self.running = False
         self.size = 100  # Character display size
+
+        # Grid-movement state
+        self.target_tile_x = start_x
+        self.target_tile_y = start_y
+        self.move_progress = 0.0   # 0.0 → 1.0 across one tile
         
         # Load character sprite
         self.load_sprite()
@@ -430,50 +460,62 @@ class Player:
             self.sprite_frames_idle = None
         
     def move(self, dx, dy, tilemap, running=False):
-        """Move player with collision detection"""
-        self.running = running
+        """Start a grid-aligned move. Ignored while a previous move is still animating."""
+        if self.moving:
+            return  # locked until current tile transition completes
         if dx == 0 and dy == 0:
-            self.moving = False
-            # Animate idle when not moving
-            self.idle_animation_frame = (self.idle_animation_frame + 0.05) % 8
             return
-            
-        # Update direction
-        if dx < 0:
-            self.direction = 'left'
-        elif dx > 0:
-            self.direction = 'right'
-        elif dy < 0:
-            self.direction = 'up'
-        elif dy > 0:
-            self.direction = 'down'
-        
-        # Set speed based on running
-        current_speed = 10 if running else 2
-        
-        # Calculate new position (ensure integers)
-        new_pixel_x = int(self.pixel_x + dx * current_speed)
-        new_pixel_y = int(self.pixel_y + dy * current_speed)
-        
-        # Convert to tile coordinates
-        new_tile_x = new_pixel_x // 32
-        new_tile_y = new_pixel_y // 32
-        
-        # Check collision
-        if not tilemap.is_collision(new_tile_x, new_tile_y):
-            self.pixel_x = new_pixel_x
-            self.pixel_y = new_pixel_y
-            self.tile_x = new_tile_x
-            self.tile_y = new_tile_y
-            self.moving = True
-            # Animation speed based on running
-            anim_speed = 0.3 if running else 0.15
-            max_frames = 8
-            self.animation_frame = (self.animation_frame + anim_speed) % max_frames
-        else:
-            self.moving = False
-            # Animate idle when blocked
+
+        # Only update direction once the previous move is done
+        if dx < 0:   self.direction = 'left'
+        elif dx > 0: self.direction = 'right'
+        elif dy < 0: self.direction = 'up'
+        elif dy > 0: self.direction = 'down'
+
+        next_tile_x = self.tile_x + dx
+        next_tile_y = self.tile_y + dy
+
+        if tilemap.is_collision(next_tile_x, next_tile_y):
+            return  # face the direction but stay put
+
+        # Begin tile transition
+        self.target_tile_x = next_tile_x
+        self.target_tile_y = next_tile_y
+        self.move_progress = 0.0
+        self.moving = True
+        self.running = running
+
+    def update(self, dt):
+        """Advance the tile-to-tile animation each frame."""
+        if not self.moving:
             self.idle_animation_frame = (self.idle_animation_frame + 0.05) % 8
+            self.animation_frame = 0  # reset walk frame when idle
+            return
+
+        # Running ~8 tiles/sec, walking ~4 tiles/sec
+        tiles_per_sec = 8.0 if self.running else 4.0
+        self.move_progress += tiles_per_sec * dt
+
+        if self.move_progress >= 1.0:
+            # Snap exactly to destination tile
+            self.tile_x = self.target_tile_x
+            self.tile_y = self.target_tile_y
+            self.pixel_x = self.tile_x * 32
+            self.pixel_y = self.tile_y * 32
+            self.move_progress = 0.0
+            self.moving = False
+        else:
+            # Smooth interpolation between origin and destination
+            start_px = self.tile_x * 32
+            start_py = self.tile_y * 32
+            end_px   = self.target_tile_x * 32
+            end_py   = self.target_tile_y * 32
+            self.pixel_x = int(start_px + (end_px - start_px) * self.move_progress)
+            self.pixel_y = int(start_py + (end_py - start_py) * self.move_progress)
+
+        # Show 2 frames per tile step (Pokémon-style: left foot, right foot)
+        # int() gives discrete frame switches rather than smooth float blending
+        self.animation_frame = int(self.move_progress * 2) % 8
     
     def draw(self, screen, camera_x, camera_y):
         """Draw player sprite with animation"""

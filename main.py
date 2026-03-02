@@ -110,7 +110,7 @@ class Game:
     
     def update(self):
         """Update game logic"""
-        dt = self.clock.get_time()
+        dt = self.clock.get_time() / 1000.0   # convert ms -> seconds
         self.current_state.update(dt)
         
         # Check for state changes

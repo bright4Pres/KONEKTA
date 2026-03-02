@@ -71,7 +71,7 @@ class Database:
         
         conn.commit()
         conn.close()
-    
+
     def update_student_stats(self, student_id, module, gems_earned):
         """Update cumulative student statistics"""
         conn = self.get_connection()

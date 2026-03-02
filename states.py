@@ -231,6 +231,7 @@ class MenuState(State):
         elif self.keys_held['right']:   dx = 1
 
         self.player.move(dx, dy, self.tilemap, self.shift_held)
+        self.player.update(dt)   # advance tile-to-tile animation
 
         # Smooth camera
         target_x, target_y = self._camera_target()
