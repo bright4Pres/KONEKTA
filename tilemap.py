@@ -1,7 +1,5 @@
-"""
-Tilemap system for retro 2D overworld
-Loads CSV layers and tileset for proper depth layering
-"""
+# tilemap stuff
+# loads the csv files and draws the map
 
 import pygame
 import os
@@ -11,22 +9,22 @@ import config
 
 class Tilemap:
     def __init__(self):
-        self.tile_size = 32  # Map tile size
-        self.tileset_tile_size = 16  # Tileset tile size
-        self.tile_cache = {}  # Cache pre-rendered tiles
+        self.tile_size = 32  # tile size on map
+        self.tileset_tile_size = 16  # tile size in the tileset image
+        self.tile_cache = {}  # save tiles so we dont re-render them each frame
         
-        # Load tileset
+        # load the tileset image
         tileset_path = f'{config.IMAGE_PATH}/Sunnyside_World_ASSET_PACK_V2.1/Sunnyside_World_Assets/Tileset/spr_tileset_sunnysideworld_16px.png'
         if os.path.exists(tileset_path):
             self.tileset = pygame.image.load(tileset_path).convert_alpha()
-            self.tileset_width = self.tileset.get_width() // self.tileset_tile_size  # 64
-            self.tileset_height = self.tileset.get_height() // self.tileset_tile_size  # 64
+            self.tileset_width = self.tileset.get_width() // self.tileset_tile_size  # how many tiles wide
+            self.tileset_height = self.tileset.get_height() // self.tileset_tile_size  # how many tiles tall
             print(f"Loaded tileset: {tileset_path}")
         else:
             self.tileset = None
             print(f"Tileset not found: {tileset_path}")
         
-        # Layer order (drawing order, bottom to top)
+        # what order to draw the layers (bottom first)
         # Visual layers in drawing order (bottom to top)
         self.layer_order = [
             'water', 'under', 'shadow_under', 'ground',
@@ -34,7 +32,7 @@ class Tilemap:
             'shadow_mid', 'object_front_low', 'object_front_high', 'shadow'
         ]
         
-        # All layers to load (visual + logic), in full map order
+        # every layer including the logic ones
         all_layers = [
             'water', 'under', 'shadow_under', 'ground',
             'object_back_low', 'object_back_high', 'decal_back',
@@ -43,7 +41,7 @@ class Tilemap:
             'collision'
         ]
         
-        # Load layers
+        # load each layer from csv
         self.layers = {}
         self.collision_map = []
         konekta_path = f'{config.RESOURCES_PATH}/konekta'
@@ -52,13 +50,13 @@ class Tilemap:
             csv_path = f'{konekta_path}/konekta._{layer_name}.csv'
             if os.path.exists(csv_path):
                 self.layers[layer_name] = self.load_csv_layer(csv_path)
-                # Debug: count non-empty tiles
+                # count tiles for debugging
                 non_empty = sum(1 for row in self.layers[layer_name] for tile in row if tile > 0)
                 print(f"Loaded layer: {layer_name} ({non_empty} non-empty tiles)")
             else:
                 print(f"Layer not found: {layer_name}")
         
-        # Set map dimensions from first layer
+        # get map size from first layer
         if self.layers:
             first_layer = list(self.layers.values())[0]
             self.map_width = len(first_layer[0]) * self.tile_size
@@ -67,29 +65,28 @@ class Tilemap:
             self.map_width = 1024
             self.map_height = 768
         
-        # Process collision layer
+        # set up collision
         if 'collision' in self.layers:
             self.collision_map = self.layers['collision']
         
-        # Process gamedesignation layers for interaction zones
+        # find where the games are on the map
         self.interaction_zones = {}
         self.process_gamedesignation()
         
-        # Find spawn position on land (needed before randomizing games)
+        # find where player spawns
         self.spawn_x, self.spawn_y = self.find_spawn_position()
         
-        # Randomize recipe and word game positions on land
+        # place the games on the map
         self.randomize_game_positions()
         
-        # Update labels to match actual zone positions
+        # update labels to match
         self.update_labels()
     
     def load_csv_layer(self, csv_path):
-        """Load a CSV layer into a 2D list.
+        """load a csv layer into a 2d list
         
-        Tiled uses -1 for empty and may write flipped tiles as large negative
-        numbers (signed 32-bit overflow).  We convert every value to unsigned
-        32-bit so the flip-flag bitmask logic works correctly.
+        tiled uses -1 for empty tiles and big numbers for flipped tiles
+        convert to unsigned 32-bit so the flip flags work
         """
         layer = []
         with open(csv_path, 'r') as f:
@@ -101,13 +98,13 @@ class Tilemap:
                     if not cell or cell == '-1':
                         parsed.append(0)           # empty tile
                     else:
-                        parsed.append(int(cell) & 0xFFFFFFFF)  # unsigned 32-bit
+                        parsed.append(int(cell) & 0xFFFFFFFF)  # fixes negative numbers somehow
                 layer.append(parsed)
         return layer
     
     def process_gamedesignation(self):
-        """Process separate gamedesignation layers for interaction zones"""
-        # Each CSV marks its dedicated zone; first non-empty tile sets the zone anchor
+        """find the game zones from their csv layers"""
+        # map csv layer name to zone name
         layer_to_zone = {
             'bc_gamedesignation':     'barangay_captain',
             'recipe_gamedesignation': 'recipe_game',
@@ -130,7 +127,7 @@ class Tilemap:
                         print(f"Found interaction zone '{zone_name}' at tile ({x}, {y})")
     
     def get_valid_land_tiles(self):
-        """Get a list of all walkable land tiles (not collision, not water)"""
+        """get all tiles the player can walk on"""
         valid_tiles = []
         
         if 'ground' not in self.layers or 'collision' not in self.layers:
@@ -141,15 +138,15 @@ class Tilemap:
         
         for y, row in enumerate(land_layer):
             for x, tile_id in enumerate(row):
-                # Check if there's a land tile and no collision
+                # walkable if theres a ground tile and no collision tile
                 if tile_id > 0 and collision_layer[y][x] == 0:
                     valid_tiles.append((x, y))
         
         return valid_tiles
     
     def randomize_game_positions(self):
-        """Place recipe_game and synonym_antonym from CSV data; fall back to random land tiles."""
-        # If both zones were already loaded from their CSVs, nothing to do
+        """place game zones on the map - uses csv positions if available, otherwise random"""
+        # skip if both zones already loaded from csv
         needs_recipe  = 'recipe_game'    not in self.interaction_zones
         needs_synonym = 'synonym_antonym' not in self.interaction_zones
         
@@ -167,7 +164,7 @@ class Tilemap:
             print("Warning: Not enough valid tiles to place games")
             return
         
-        # Remove tiles too close to spawn or existing zones
+        # filter out tiles that are too close to spawn or other zones
         filtered_tiles = []
         for x, y in valid_tiles:
             if abs(x - self.spawn_x) <= 3 and abs(y - self.spawn_y) <= 3:
@@ -202,7 +199,7 @@ class Tilemap:
             print("Warning: Could not find suitable positions for games")
     
     def update_labels(self):
-        """Update label positions to match interaction zones"""
+        """update the label positions to match the zones"""
         self.labels = []
         
         zone_label_map = {
@@ -217,13 +214,13 @@ class Tilemap:
                 self.labels.append({
                     'text': label_info['text'],
                     'x': zone['x'],
-                    'y': zone['y'] - 10,  # Place label slightly above the zone
+                    'y': zone['y'] - 10,  # put label above the zone
                     'color': label_info['color']
                 })
     
     def find_spawn_position(self):
-        """Find a suitable spawn position using spawnpoint layer, then ground, then fallback"""
-        # Prefer explicit spawnpoint CSV
+        """find where the player starts - looks at spawnpoint layer first"""
+        # first try the spawnpoint csv
         if 'spawnpoint' in self.layers:
             for y, row in enumerate(self.layers['spawnpoint']):
                 for x, tile_id in enumerate(row):
@@ -231,7 +228,7 @@ class Tilemap:
                         print(f"Found spawn on spawnpoint layer at ({x}, {y})")
                         return x, y
         
-        # Fall back to first ground tile
+        # use ground layer if no spawnpoint
         for layer_name in ['ground', 'water']:
             if layer_name in self.layers:
                 layer = self.layers[layer_name]
@@ -241,7 +238,7 @@ class Tilemap:
                             print(f"Found spawn on {layer_name} at ({x}, {y}), ID: {tile_id}")
                             return x, y
         
-        # Fallback to center of map
+        # just use the middle of the map
         if self.layers:
             first_layer = list(self.layers.values())[0]
             center_x = len(first_layer[0]) // 2
@@ -253,27 +250,27 @@ class Tilemap:
         return 10, 8
     
     def draw(self, screen, camera_x, camera_y):
-        """Draw all map layers with camera offset"""
+        """draw the map with camera offset"""
         camera_x = int(camera_x)
         camera_y = int(camera_y)
         
         if not self.tileset:
             return
         
-        # Draw layers in order
+        # draw each layer from bottom to top
         for layer_name in self.layer_order:
             if layer_name in self.layers:
                 self.draw_layer(screen, self.layers[layer_name], camera_x, camera_y)
     
     def draw_layer(self, screen, layer_data, camera_x, camera_y):
-        """Draw a single layer with tile caching"""
-        # Tiled flip flags
+        """draw one layer"""
+        # these flags tell us if tiles are flipped
         FLIPPED_HORIZONTALLY_FLAG = 0x80000000
         FLIPPED_VERTICALLY_FLAG = 0x40000000
         FLIPPED_DIAGONALLY_FLAG = 0x20000000
         FLAGS_MASK = ~(FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG)
         
-        # Calculate visible tile range for culling (add extra tiles to prevent gaps)
+        # only draw tiles that are on screen (faster)
         start_x = max(0, camera_x // self.tile_size - 1)
         start_y = max(0, camera_y // self.tile_size - 1)
         end_x = min(len(layer_data[0]), (camera_x + config.SCREEN_WIDTH) // self.tile_size + 2)
@@ -283,43 +280,43 @@ class Tilemap:
             row = layer_data[y]
             for x in range(start_x, end_x):
                 tile_id = row[x]
-                if tile_id != 0:  # 0 = empty
-                    # Create cache key with flip flags
+                if tile_id != 0:  # skip empty tiles
+                    # cache key includes flip info
                     cache_key = tile_id
                     
-                    # Check cache first
+                    # check if we already made this tile
                     if cache_key not in self.tile_cache:
-                        # Extract flip flags
+                        # check which flips are applied
                         flipped_h = tile_id & FLIPPED_HORIZONTALLY_FLAG
                         flipped_v = tile_id & FLIPPED_VERTICALLY_FLAG
                         flipped_d = tile_id & FLIPPED_DIAGONALLY_FLAG
                         
-                        # Remove flags to get actual tile ID
+                        # get the actual tile id without flags
                         clean_tile_id = tile_id & FLAGS_MASK
                         
-                        # This tileset uses firstgid=0 (0-based GIDs directly)
+                        # tileset starts at 0
                         idx = clean_tile_id
                         if idx < 0:
                             self.tile_cache[cache_key] = None
                             continue
                         
-                        # Convert 0-based index to tileset coordinates
+                        # get position in the tileset image
                         tile_x = (idx % self.tileset_width) * self.tileset_tile_size
                         tile_y = (idx // self.tileset_width) * self.tileset_tile_size
                         
-                        # Skip if outside tileset bounds
+                        # skip if out of bounds
                         if tile_x + self.tileset_tile_size > self.tileset.get_width() or tile_y + self.tileset_tile_size > self.tileset.get_height():
                             self.tile_cache[cache_key] = None
                             continue
                         
-                        # Get tile subsurface
+                        # cut out the tile from the tileset
                         try:
                             tile_surf = self.tileset.subsurface((tile_x, tile_y, self.tileset_tile_size, self.tileset_tile_size)).copy()
                         except (ValueError, pygame.error):
                             self.tile_cache[cache_key] = None
                             continue
                         
-                        # Apply flips
+                        # flip it if needed
                         if flipped_h:
                             tile_surf = pygame.transform.flip(tile_surf, True, False)
                         if flipped_v:
@@ -328,19 +325,19 @@ class Tilemap:
                             tile_surf = pygame.transform.rotate(tile_surf, -90)
                             tile_surf = pygame.transform.flip(tile_surf, True, False)
                         
-                        # Scale to map tile size and cache
+                        # scale up and save to cache
                         tile_surf = pygame.transform.scale(tile_surf, (self.tile_size, self.tile_size))
                         self.tile_cache[cache_key] = tile_surf
                     
-                    # Draw cached tile (if not None)
+                    # draw the tile (skip if None)
                     if self.tile_cache[cache_key] is not None:
                         screen_x = int(x * self.tile_size - camera_x)
                         screen_y = int(y * self.tile_size - camera_y)
                         screen.blit(self.tile_cache[cache_key], (screen_x, screen_y))
     
     def is_collision(self, tile_x, tile_y):
-        """Check if tile is blocked by collision map or boundaries"""
-        # Check map boundaries first
+        """check if the tile is blocked"""
+        # check if out of bounds
         if tile_x < 0 or tile_y < 0:
             return True
         if tile_x >= len(self.collision_map[0]) if self.collision_map else tile_x * 32 >= self.map_width - 32:
@@ -348,15 +345,15 @@ class Tilemap:
         if tile_y >= len(self.collision_map) if self.collision_map else tile_y * 32 >= self.map_height - 32:
             return True
         
-        # Check collision map
+        # check the collision layer
         if self.collision_map and 0 <= tile_y < len(self.collision_map) and 0 <= tile_x < len(self.collision_map[tile_y]):
             return self.collision_map[tile_y][tile_x] > 0
         
         return False
     
     def check_interaction(self, tile_x, tile_y):
-        """Check if player is on or near an interaction zone"""
-        # Check current tile and adjacent tiles (1 tile radius)
+        """check if player is near a game zone"""
+        # check the player tile and tiles around it
         for dy in range(-1, 2):
             for dx in range(-1, 2):
                 check_x = tile_x + dx
@@ -371,7 +368,7 @@ class Tilemap:
         return None
     
     def draw_labels(self, screen, camera_x, camera_y, font):
-        """Draw building labels"""
+        """draw the labels above each game zone"""
         for label in self.labels:
             x = label['x'] - camera_x
             y = label['y'] - camera_y
@@ -379,9 +376,9 @@ class Tilemap:
             text = font.render(label['text'], True, config.WHITE)
             text_shadow = font.render(label['text'], True, config.BLACK)
             
-            # Shadow
+            # shadow
             screen.blit(text_shadow, (x + 2, y + 2))
-            # Text
+            # draw it
             screen.blit(text, (x, y))
 
 
@@ -397,18 +394,18 @@ class Player:
         self.direction = 'down'
         self.moving = False
         self.running = False
-        self.size = 100  # Character display size
+        self.size = 100  # how big the character looks
 
-        # Grid-movement state
+        # grid movement vars
         self.target_tile_x = start_x
         self.target_tile_y = start_y
-        self.move_progress = 0.0   # 0.0 → 1.0 across one tile
+        self.move_progress = 0.0   # goes from 0 to 1 as player moves to next tile
         
-        # Load character sprite
+        # load the sprites
         self.load_sprite()
     
     def load_strip(self, filename, direction, num_frames=8):
-        """Load animation frames from a specific row in the grid PNG"""
+        """load animation frames for one direction from a sprite sheet"""
         path = f'{config.IMAGE_PATH}/lpc_male_animations_2026-02-05T00-35-56/standard/{filename}'
         if os.path.exists(path):
             grid = pygame.image.load(path).convert_alpha()
@@ -427,12 +424,12 @@ class Player:
             return None
     
     def load_sprite(self):
-        """Load and extract animation frames from separate animation grids"""
+        """load all the animation frames"""
         self.sprite_frames = {}
         self.sprite_frames_run = {}
         self.sprite_frames_idle = {}
         
-        # Load walk animations (8 frames per direction)
+        # walk animations
         for direction in ['down', 'up', 'right', 'left']:
             frames = self.load_strip('walk.png', direction, 8)
             if frames:
@@ -441,7 +438,7 @@ class Player:
         if not self.sprite_frames:
             self.sprite_frames = None
         
-        # Load run animations (8 frames per direction)
+        # run animations
         for direction in ['down', 'up', 'right', 'left']:
             frames = self.load_strip('run.png', direction, 8)
             if frames:
@@ -450,7 +447,7 @@ class Player:
         if not self.sprite_frames_run:
             self.sprite_frames_run = None
         
-        # Load idle animations (8 frames per direction)
+        # idle animations
         for direction in ['down', 'up', 'right', 'left']:
             frames = self.load_strip('idle.png', direction, 8)
             if frames:
@@ -460,13 +457,13 @@ class Player:
             self.sprite_frames_idle = None
         
     def move(self, dx, dy, tilemap, running=False):
-        """Start a grid-aligned move. Ignored while a previous move is still animating."""
+        """move the player one tile, ignores input if still moving"""
         if self.moving:
-            return  # locked until current tile transition completes
+            return  # wait until done moving first
         if dx == 0 and dy == 0:
             return
 
-        # Only update direction once the previous move is done
+        # update direction after done moving
         if dx < 0:   self.direction = 'left'
         elif dx > 0: self.direction = 'right'
         elif dy < 0: self.direction = 'up'
@@ -476,9 +473,9 @@ class Player:
         next_tile_y = self.tile_y + dy
 
         if tilemap.is_collision(next_tile_x, next_tile_y):
-            return  # face the direction but stay put
+            return  # blocked, dont move
 
-        # Begin tile transition
+        # start moving
         self.target_tile_x = next_tile_x
         self.target_tile_y = next_tile_y
         self.move_progress = 0.0
@@ -486,18 +483,18 @@ class Player:
         self.running = running
 
     def update(self, dt):
-        """Advance the tile-to-tile animation each frame."""
+        """update movement animation each frame"""
         if not self.moving:
             self.idle_animation_frame = (self.idle_animation_frame + 0.05) % 8
             self.animation_frame = 0  # reset walk frame when idle
             return
 
-        # Running ~8 tiles/sec, walking ~4 tiles/sec
+        # run = 8 tiles per sec, walk = 4 tiles per sec
         tiles_per_sec = 8.0 if self.running else 4.0
         self.move_progress += tiles_per_sec * dt
 
         if self.move_progress >= 1.0:
-            # Snap exactly to destination tile
+            # snap to tile when done
             self.tile_x = self.target_tile_x
             self.tile_y = self.target_tile_y
             self.pixel_x = self.tile_x * 32
@@ -505,7 +502,7 @@ class Player:
             self.move_progress = 0.0
             self.moving = False
         else:
-            # Smooth interpolation between origin and destination
+            # lerp between tiles for smooth movement
             start_px = self.tile_x * 32
             start_py = self.tile_y * 32
             end_px   = self.target_tile_x * 32
@@ -513,22 +510,22 @@ class Player:
             self.pixel_x = int(start_px + (end_px - start_px) * self.move_progress)
             self.pixel_y = int(start_py + (end_py - start_py) * self.move_progress)
 
-        # Show 2 frames per tile step (Pokémon-style: left foot, right foot)
-        # int() gives discrete frame switches rather than smooth float blending
+        # 2 frames per tile step (left foot right foot basically)
+        # int() makes it switch frames instead of blend
         self.animation_frame = int(self.move_progress * 2) % 8
     
     def draw(self, screen, camera_x, camera_y):
-        """Draw player sprite with animation"""
-        # Ensure integer screen positions (no sub-pixel rendering)
-        # Center the larger sprite on the player position
+        """draw the player"""
+        # use int so no blurry sub-pixel stuff
+        # also center the sprite on the tile
         screen_x = int(self.pixel_x - camera_x - (self.size - 32) // 2)
         screen_y = int(self.pixel_y - camera_y - (self.size - 32))
         
-        # Use loaded sprite frames if available
+        # draw sprite if we have one loaded
         if self.sprite_frames and self.direction in self.sprite_frames:
             current_frame = None
             
-            # Get current frame based on direction and animation
+            # pick the right frame to show
             if self.moving:
                 if self.running and self.sprite_frames_run and self.direction in self.sprite_frames_run:
                     frames = self.sprite_frames_run[self.direction]
@@ -539,37 +536,37 @@ class Player:
                     frame_index = int(self.animation_frame) % len(frames)
                     current_frame = frames[frame_index]
             else:
-                # When idle, just use the first frame of walk animation (static pose)
+                # just stay on first frame when not moving
                 current_frame = self.sprite_frames[self.direction][0]
             
             if current_frame:
                 screen.blit(current_frame, (screen_x, screen_y))
             else:
-                # Draw fallback if frame not found
+                # fallback if something went wrong
                 self._draw_fallback_character(screen, screen_x, screen_y)
         else:
-            # Draw fallback character
+            # no sprite loaded, use box guy
             self._draw_fallback_character(screen, screen_x, screen_y)
     
     def _draw_fallback_character(self, screen, screen_x, screen_y):
-        """Draw a simple fallback character"""
-        # Fallback to procedural blocky character
+        """draw a simple box person if no sprite loaded"""
+        # draw a simple stick figure type guy
         player_surf = pygame.Surface((32, 32))
-        player_surf.fill((255, 0, 255))  # Transparent color
+        player_surf.fill((255, 0, 255))  # pink = transparent
         player_surf.set_colorkey((255, 0, 255))
         
-        # Body
+        # body
         body_color = config.BLUE
         pygame.draw.rect(player_surf, body_color, (8, 12, 16, 16))
         
-        # Head
+        # head
         pygame.draw.rect(player_surf, (255, 220, 177), (10, 6, 12, 10))
         
-        # Eyes
+        # eyes
         pygame.draw.rect(player_surf, config.BLACK, (12, 9, 2, 2))
         pygame.draw.rect(player_surf, config.BLACK, (18, 9, 2, 2))
         
-        # Legs (animate)
+        # legs (animate them)
         leg_offset = int(self.animation_frame) if self.moving else 0
         if leg_offset % 2 == 0:
             pygame.draw.rect(player_surf, body_color, (10, 28, 4, 4))
@@ -578,7 +575,7 @@ class Player:
             pygame.draw.rect(player_surf, body_color, (8, 28, 4, 4))
             pygame.draw.rect(player_surf, body_color, (20, 28, 4, 4))
         
-        # Border for blocky look
+        # outline
         pygame.draw.rect(player_surf, config.BLACK, (8, 6, 16, 26), 2)
         
         screen.blit(player_surf, (screen_x, screen_y))

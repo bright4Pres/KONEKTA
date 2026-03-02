@@ -1,17 +1,15 @@
-"""
-Configuration file for Assistive Literacy Learning System
-Contains all game constants, settings, and configuration values
-"""
+# config file
+# all the settings and stuff for the game
 
-# Screen settings
+# screen settings
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1200
 FPS = 165
-KIOSK_MODE = True  # Set to True for deployment, False for development
+KIOSK_MODE = True  # True = fullscreen, False = windowed (for testing)
 
-# Resource paths (defined at bottom of file with RESOURCES_PATH)
+# paths are defined at the bottom of the file
 
-# Colors (High contrast for accessibility)
+# colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GREEN = (34, 139, 34)
@@ -24,16 +22,16 @@ DARK_GRAY = (100, 100, 100)
 ORANGE = (255, 140, 0)
 PURPLE = (128, 0, 128)
 
-# Font sizes (Large for accessibility)
+# font sizes (bigger = easier to read i guess)
 FONT_TITLE = 72
 FONT_LARGE = 48
 FONT_MEDIUM = 36
 FONT_SMALL = 24
 
-# Game progression - All zones unlocked (Phil IRI approach)
+# points per answer
 POINTS_PER_CORRECT_ANSWER = 10
 
-# Assistive features
+# hint timing stuff
 HINT_DELAY_MS = 5000  # 5 seconds
 HOVER_HINT_DELAY_MS = 3000  # 3 seconds
 
@@ -44,30 +42,30 @@ BARANGAY_COMPLAINTS = [
             'passage': "Maria approached the barangay captain with a worried look. 'Captain, my neighbor's pig escaped from its pen and destroyed my vegetable garden. According to the barangay ordinance on livestock, the owner should compensate me for the damages. But he refuses to pay. What should I do?'",
             'question': "Based on the passage, what legal document does Maria reference?",
             'choices': [
-                "The barangay budget report",  # Incorrect
-                "The barangay ordinance on livestock",  # Correct - Phil-IRI comprehension
-                "The municipal tax records",  # Incorrect
-                "The barangay meeting minutes"  # Incorrect
+                "The barangay budget report",  # wrong
+                "The barangay ordinance on livestock",  # right answer
+                "The municipal tax records",  # wrong
+                "The barangay meeting minutes"  # wrong
             ]
         },
         'tagalog': {
             'passage': "Lumapit si Maria sa barangay captain na may mukhang nag-aalala. 'Captain, tumakas ang baboy ng kapitbahay ko mula sa kulungan at sinira ang aking gulayan. Ayon sa barangay ordinance tungkol sa mga hayop, dapat bayaran ng may-ari ang mga pinsala. Ngunit ayaw niyang magbayad. Ano ang dapat kong gawin?'",
             'question': "Batay sa salaysay, ano ang legal na dokumento na binanggit ni Maria?",
             'choices': [
-                "Ang ulat ng barangay budget",  # Incorrect
-                "Ang barangay ordinance tungkol sa mga hayop",  # Correct
-                "Ang municipal tax records",  # Incorrect
-                "Ang mga minuto ng barangay meeting"  # Incorrect
+                "Ang ulat ng barangay budget",  # wrong
+                "Ang barangay ordinance tungkol sa mga hayop",  # right
+                "Ang municipal tax records",  # wrong
+                "Ang mga minuto ng barangay meeting"  # wrong
             ]
         },
         'bisaya': {
             'passage': "Miabot si Maria sa barangay captain nga may worried nga nawong. 'Captain, mikalag ang baboy sa among silingan gikan sa iyang piniriso ug giguba ang akong utan. Sumala sa barangay ordinance bahin sa mga hayop, ang tag-iya kinahanglan nga mobayad sa mga kadaut. Apan dili siya buot mobayad. Unsa ang akong buhaton?'",
             'question': "Base sa istorya, unsa ang legal nga dokumento nga gihisgotan ni Maria?",
             'choices': [
-                "Ang barangay budget report",  # Incorrect
-                "Ang barangay ordinance bahin sa mga hayop",  # Correct
-                "Ang municipal tax records",  # Incorrect
-                "Ang mga minuto sa barangay meeting"  # Incorrect
+                "Ang barangay budget report",  # wrong
+                "Ang barangay ordinance bahin sa mga hayop",  # right
+                "Ang municipal tax records",  # wrong
+                "Ang mga minuto sa barangay meeting"  # wrong
             ]
         },
         'correct': 1,
@@ -80,30 +78,30 @@ BARANGAY_COMPLAINTS = [
             'passage': "The barangay captain received a complaint about a large pothole on Main Street. Residents reported that the hole was causing accidents and making it difficult to walk. The barangay has a maintenance budget for road repairs, but funds are limited.",
             'question': "What is the main problem described in the passage?",
             'choices': [
-                "The barangay has too much money",  # Incorrect
-                "A pothole is causing accidents and walking difficulties",  # Correct
-                "Residents don't like Main Street",  # Incorrect
-                "The barangay captain is new"  # Incorrect
+                "The barangay has too much money",  # wrong
+                "A pothole is causing accidents and walking difficulties",  # right
+                "Residents don't like Main Street",  # wrong
+                "The barangay captain is new"  # wrong
             ]
         },
         'tagalog': {
             'passage': "Tumanggap ang barangay captain ng reklamo tungkol sa malaking butas sa Main Street. Ibinigay ng mga residente na ang butas ay nagiging sanhi ng mga aksidente at mahirap maglakad. May maintenance budget ang barangay para sa pag-aayos ng mga kalsada, ngunit limitado ang pondo.",
             'question': "Ano ang pangunahing problema na inilarawan sa salaysay?",
             'choices': [
-                "Ang barangay ay may sobrang pera",  # Incorrect
-                "Ang butas sa kalsada ay nagiging sanhi ng aksidente at mahirap maglakad",  # Correct
-                "Ayaw ng mga residente sa Main Street",  # Incorrect
-                "Bago ang barangay captain"  # Incorrect
+                "Ang barangay ay may sobrang pera",  # wrong
+                "Ang butas sa kalsada ay nagiging sanhi ng aksidente at mahirap maglakad",  # right
+                "Ayaw ng mga residente sa Main Street",  # wrong
+                "Bago ang barangay captain"  # wrong
             ]
         },
         'bisaya': {
             'passage': "Nadawat sa barangay captain ang usa ka reklamo bahin sa dagkong lungag sa Main Street. Gisulti sa mga residente nga ang lungag naghimo og aksidente ug lisud na maglakaw. Aduna ang barangay og maintenance budget para sa pag-ayo sa mga dalan, apan limitado ang pundo.",
             'question': "Unsa ang main nga problema nga gihulagway sa istorya?",
             'choices': [
-                "Ang barangay aduna og sobra nga kwarta",  # Incorrect
-                "Ang lungag sa dalan naghimo og aksidente ug lisud maglakaw",  # Correct
-                "Dili gusto sa mga residente ang Main Street",  # Incorrect
-                "Bag-o ang barangay captain"  # Incorrect
+                "Ang barangay aduna og sobra nga kwarta",  # wrong
+                "Ang lungag sa dalan naghimo og aksidente ug lisud maglakaw",  # right
+                "Dili gusto sa mga residente ang Main Street",  # wrong
+                "Bag-o ang barangay captain"  # wrong
             ]
         },
         'correct': 1,
@@ -111,7 +109,7 @@ BARANGAY_COMPLAINTS = [
         'skill': 'main_idea',
         'happiness_impact': [0, 20, 0, 0]
     },
-    # Add more Phil-IRI aligned complaints...
+    # TODO: add more complaints later
 ]
 
 # Synonym/Antonym Game - Phil-IRI Aligned Vocabulary Building
@@ -206,7 +204,7 @@ SYNONYM_ANTONYM_WORDS = [
         'correct_antonym': 1,
         'phil_iri_level': 'primer'
     },
-    # Continue with more context-based vocabulary...
+    # TODO: add more words
 ]
 
 # Recipe Game - Phil-IRI Aligned Reading Comprehension
@@ -222,7 +220,7 @@ RECIPES = [
             'tagalog': 'Ang Tinola ay isang tradisyonal na sopas ng manok na Pilipino na parehong masustansya at nakakaaliw. Pinagsasama nito ang malambot na manok kasama ang green papaya at mabangong spices.',
             'bisaya': 'Ang Tinola usa ka tradisyonal nga Filipino chicken soup nga nutritious ug comforting. Gipangkombinar kini sa tender chicken uban sa green papaya ug aromatic spices.'
         },
-        'reading_level': 'primer',  # Phil-IRI level
+        'reading_level': 'primer',  # the readning level
         'ingredients': {
             'english': [
                 '1 whole chicken, cut into pieces',
@@ -314,21 +312,21 @@ RECIPES = [
             ]
         }
     },
-    # Add more Phil-IRI aligned recipes...
+    # TODO: add more recipes
 ]
 
-# Teacher Dashboard
-TEACHER_PASSWORD = 'konekta2026'  # Change this for deployment
+# teacher dashboard settings
+TEACHER_PASSWORD = 'konekta2026'  # change this later or whatever
 TEACHER_KEY_COMBO = ['LCTRL', 'T']  # Ctrl+T
 
-# Student IDs (for demo purposes)
+# default student id for testing
 DEFAULT_STUDENT_ID = 'student_demo'
 
-# Asset paths
+# file paths
 RESOURCES_PATH = 'resources'
 AUDIO_PATH = f'{RESOURCES_PATH}/audio'
 IMAGE_PATH = f'{RESOURCES_PATH}/images'
 FONT_PATH = f'{RESOURCES_PATH}/font/PixelifySans/static/PixelifySans-Regular.ttf'
 
-# Database settings
+# database file
 DATABASE_NAME = 'progress.db'

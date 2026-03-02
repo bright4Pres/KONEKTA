@@ -1,7 +1,5 @@
-"""
-Main game loop for Assistive Literacy Learning System
-Handles state management, event processing, and game flow
-"""
+# main game file or whatever
+# this runs everything i think
 
 import pygame
 import sys
@@ -17,21 +15,21 @@ from states import (
 )
 
 class Game:
-    """Main game class with state machine"""
+    """the game class"""
     def __init__(self):
-        # Initialize Pygame
+        # start pygame
         pygame.init()
         pygame.mixer.init()
         
-        # Screen setup
+        # screen stuff
         if config.KIOSK_MODE:
-            # Get native fullscreen resolution
+            # get the screen size idk
             infoObject = pygame.display.Info()
             self.screen = pygame.display.set_mode(
                 (infoObject.current_w, infoObject.current_h),
                 pygame.FULLSCREEN
             )
-            # Update config with actual screen dimensions
+            # update size values
             config.SCREEN_WIDTH = self.screen.get_width()
             config.SCREEN_HEIGHT = self.screen.get_height()
         else:
@@ -41,19 +39,19 @@ class Game:
         
         pygame.display.set_caption("BAYOT SI JARED 2.0")
         
-        # Clock for FPS
+        # clock for timing
         self.clock = pygame.time.Clock()
         
-        # Fonts
+        # load the fonts
         self.font_title = pygame.font.Font(None, config.FONT_TITLE)
         self.font_large = pygame.font.Font(None, config.FONT_LARGE)
         self.font_medium = pygame.font.Font(None, config.FONT_MEDIUM)
         self.font_small = pygame.font.Font(None, config.FONT_SMALL)
         
-        # Database
+        # db
         self.db = Database()
         
-        # State management
+        # all the different game screens
         self.states = {
             'menu': MenuState(self),
             'teacher': TeacherDashboardState(self),
@@ -65,36 +63,36 @@ class Game:
         self.current_state = self.states['menu']
         self.current_state.enter()
         
-        # Session tracking
+        # track how long they play
         self.session_id = self.db.start_session(config.DEFAULT_STUDENT_ID)
         self.session_start = time.time()
         
-        # Teacher dashboard key combo tracking
+        # keys being held rn
         self.keys_pressed = set()
     
     def handle_events(self):
-        """Process all pygame events"""
+        """handle events"""
         for event in pygame.event.get():
-            # Quit event (disabled in kiosk mode)
+            # quit (doesnt work in kiosk mode tho)
             if event.type == pygame.QUIT:
                 if not config.KIOSK_MODE:
                     return False
             
-            # Key tracking for teacher dashboard
+            # check what keys are pressed
             if event.type == pygame.KEYDOWN:
                 key_name = pygame.key.name(event.key).upper()
                 self.keys_pressed.add(key_name)
                 
-                # Check for teacher dashboard combo (Ctrl+T)
+                # ctrl+t opens the teacher thing
                 if 'LEFT CTRL' in self.keys_pressed or 'RIGHT CTRL' in self.keys_pressed:
                     if 'T' in self.keys_pressed:
                         self.change_state('teacher')
                         self.keys_pressed.clear()
                         continue
                 
-                # ESC key behavior in kiosk mode
+                # esc key doesnt quit in kiosk mode
                 if event.key == pygame.K_ESCAPE and config.KIOSK_MODE:
-                    # Only allow ESC to go back to menu, not quit
+                    # just go back to menu instead
                     if self.current_state != self.states['menu']:
                         self.change_state('menu')
                     continue
@@ -103,22 +101,22 @@ class Game:
                 key_name = pygame.key.name(event.key).upper()
                 self.keys_pressed.discard(key_name)
             
-            # Pass event to current state
+            # give the event to whatever screen is active
             self.current_state.handle_event(event)
         
         return True
     
     def update(self):
-        """Update game logic"""
-        dt = self.clock.get_time() / 1000.0   # convert ms -> seconds
+        """update stuff"""
+        dt = self.clock.get_time() / 1000.0   # milliseconds to seconds
         self.current_state.update(dt)
         
-        # Check for state changes
+        # switch screens if needed
         if self.current_state.next_state:
             self.change_state(self.current_state.next_state)
     
     def change_state(self, new_state_name):
-        """Change to a new game state"""
+        """switch to a different screen"""
         if new_state_name in self.states:
             self.current_state.exit()
             self.current_state.next_state = None
@@ -126,12 +124,12 @@ class Game:
             self.current_state.enter()
     
     def draw(self):
-        """Render current state"""
+        """draw everything"""
         self.current_state.draw(self.screen)
         pygame.display.flip()
     
     def run(self):
-        """Main game loop"""
+        """the main loop that keeps everything going"""
         running = True
         
         while running:
@@ -143,8 +141,8 @@ class Game:
         self.cleanup()
     
     def cleanup(self):
-        """Cleanup before exit"""
-        # End session
+        """clean up before closing"""
+        # end the session and save it
         session_duration = time.time() - self.session_start
         self.db.end_session(self.session_id, session_duration)
         
@@ -152,7 +150,7 @@ class Game:
         sys.exit()
 
 def main():
-    """Entry point"""
+    """runs the game"""
     game = Game()
     game.run()
 

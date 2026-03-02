@@ -1,7 +1,5 @@
-"""
-Game states for Assistive Literacy Learning System
-Contains all game state classes and logic
-"""
+# states for each screen in the game
+# all the game logic is in here too
 
 import pygame
 import random
@@ -13,11 +11,11 @@ from tilemap import Tilemap, Player
 
 
 # ---------------------------------------------------------------------------
-# Base State with shared utilities
+# Base state (other states inherit from this)
 # ---------------------------------------------------------------------------
 
 class State:
-    """Base state class with shared utilities."""
+    """base class that all states inherit from"""
 
     def __init__(self, game):
         self.game = game
@@ -38,11 +36,11 @@ class State:
     def draw(self, screen):
         pass
 
-    # --- Shared utility methods ---
+    # --- shared helper methods ---
 
     @staticmethod
     def wrap_text_pixel(text, max_width, font):
-        """Wrap text to fit within *max_width* pixels."""
+        """wrap text so it fits on screen"""
         words = text.split()
         lines = []
         current_line = ''
@@ -64,10 +62,7 @@ class State:
 
     @staticmethod
     def create_gradient(width, height, color_func):
-        """Pre-render a vertical gradient surface.
-
-        *color_func(row_index)* must return an (r, g, b) tuple.
-        """
+        """make a gradient background surface"""
         surface = pygame.Surface((width, height))
         for i in range(height):
             pygame.draw.line(surface, color_func(i), (0, i), (width - 1, i))
@@ -76,7 +71,7 @@ class State:
     @staticmethod
     def draw_retro_box(screen, rect, bg_color, border_color=None,
                        shadow=True, border_width=3):
-        """Draw a retro-styled box with optional shadow & border."""
+        """draw a box with a shadow and border"""
         if shadow:
             pygame.draw.rect(screen, config.BLACK, rect.inflate(6, 6).move(2, 2))
         pygame.draw.rect(screen, bg_color, rect)
@@ -84,7 +79,7 @@ class State:
             pygame.draw.rect(screen, border_color, rect, border_width)
 
     def draw_language_selection(self, screen, title_color):
-        """Draw the shared language-selection overlay."""
+        """show the pick a language screen"""
         title_box = pygame.Rect(config.SCREEN_WIDTH // 2 - 300, 100, 600, 80)
         self.draw_retro_box(screen, title_box, title_color, config.YELLOW,
                             border_width=5)
@@ -120,8 +115,7 @@ class State:
 
     @staticmethod
     def handle_language_key(event):
-        """Return 'english'/'tagalog'/'bisaya' if a language key was pressed,
-        else *None*."""
+        """check if 1 2 or 3 was pressed for language"""
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_1:
                 return 'english'
@@ -133,11 +127,11 @@ class State:
 
 
 # ---------------------------------------------------------------------------
-# Menu / Hub (overworld)
+# Menu (the overworld map)
 # ---------------------------------------------------------------------------
 
 class MenuState(State):
-    """Top-down retro overworld hub."""
+    """the overworld map where you walk around"""
 
     def __init__(self, game):
         super().__init__(game)
@@ -153,33 +147,33 @@ class MenuState(State):
         self.stats = {'total_gems': 0}
         self.saved_x = self.tilemap.spawn_x
         self.saved_y = self.tilemap.spawn_y
-        # Initialize camera centered on player (critical for fullscreen)
+        # start camera on player
         self.camera_x, self.camera_y = self._camera_target()
         self._clamp_camera()
 
-    # --- helpers ---
+    # --- camera stuff ---
 
     def _camera_target(self):
-        """Return the ideal (x, y) the camera should look at."""
+        """calculate where the camera should be"""
         sprite_oy = -(self.player.size - 32) + self.player.size // 2
         tx = int(self.player.pixel_x - config.SCREEN_WIDTH  // 2 + 16)
         ty = int(self.player.pixel_y - config.SCREEN_HEIGHT // 2 + sprite_oy)
         return tx, ty
     
     def _clamp_camera(self):
-        """Clamp camera position to map boundaries."""
+        """dont let camera go outside the map"""
         max_cx = max(0, self.tilemap.map_width  - config.SCREEN_WIDTH)
         max_cy = max(0, self.tilemap.map_height - config.SCREEN_HEIGHT)
         self.camera_x = max(0, min(self.camera_x, max_cx))
         self.camera_y = max(0, min(self.camera_y, max_cy))
 
-    # --- state callbacks ---
+    # --- lifecycle ---
 
     def enter(self):
         self.stats = self.game.db.get_student_stats(self.student_id)
         self.player = Player(self.saved_x, self.saved_y)
         self.interaction_prompt = None
-        # Immediately snap camera to player (no lerp) when entering/returning
+        # snap camera to player immediately when entering
         self.camera_x, self.camera_y = self._camera_target()
         self._clamp_camera()
 
@@ -199,7 +193,7 @@ class MenuState(State):
                 self.shift_held = True
             elif event.key in (pygame.K_e, pygame.K_SPACE):
                 if self.interaction_prompt:
-                    # Save tile position (not pixel) for proper restoration
+                    # save where we are before switching screens
                     self.saved_x = self.player.tile_x
                     self.saved_y = self.player.tile_y
                     zone_map = {
@@ -233,15 +227,15 @@ class MenuState(State):
         self.player.move(dx, dy, self.tilemap, self.shift_held)
         self.player.update(dt)   # advance tile-to-tile animation
 
-        # Smooth camera
+        # move camera towards player smoothly
         target_x, target_y = self._camera_target()
         self.camera_x = int(self.camera_x + (target_x - self.camera_x) * 0.1)
         self.camera_y = int(self.camera_y + (target_y - self.camera_y) * 0.1)
 
-        # Clamp to map boundaries
+        # keep camera inside map
         self._clamp_camera()
 
-        # Interaction zones
+        # check if player is near a game zone
         new_prompt = self.tilemap.check_interaction(self.player.tile_x,
                                                     self.player.tile_y)
         if new_prompt != self.interaction_prompt:
@@ -256,7 +250,7 @@ class MenuState(State):
         self.tilemap.draw_labels(screen, self.camera_x, self.camera_y,
                                  self.game.font_small)
 
-        # Interaction prompt
+        # show the press space prompt
         if self.interaction_prompt:
             anim_t = time.time() - self.prompt_animation_start
             if anim_t < 0.3:
@@ -289,7 +283,7 @@ class MenuState(State):
             screen.blit(text_shadow, tr.move(2, 2))
             screen.blit(text, tr)
 
-        # Controls hint
+        # controls hint at the top
         ctrl = self.game.font_small.render(
             "Arrow Keys / WASD: Move | SPACE: Interact | ESC: Quit",
             True, config.WHITE)
@@ -304,7 +298,7 @@ class MenuState(State):
         screen.blit(ctrl_s, cr.move(1, 1))
         screen.blit(ctrl, cr)
 
-        # Gems
+        # gems counter
         stxt = self.game.font_medium.render(
             f"Total Gems: {self.stats['total_gems']}", True, config.YELLOW)
         sshd = self.game.font_medium.render(
@@ -319,11 +313,11 @@ class MenuState(State):
 
 
 # ---------------------------------------------------------------------------
-# Teacher Dashboard
+# Teacher Screen
 # ---------------------------------------------------------------------------
 
 class TeacherDashboardState(State):
-    """Teacher dashboard for viewing student progress."""
+    """password protected screen to see student progress"""
 
     def __init__(self, game):
         super().__init__(game)
@@ -399,13 +393,13 @@ class TeacherDashboardState(State):
 
 
 # ---------------------------------------------------------------------------
-# Barangay Captain Simulator
+# Barangay Captain Game
 # ---------------------------------------------------------------------------
 
 class BarangayCaptainState(State):
-    """Barangay Captain Simulator – decision-making game."""
+    """the barangay captain reading game"""
 
-    _gradient_bg = None  # class-level cached gradient
+    _gradient_bg = None  # cached background so we dont redraw it every frame
 
     def __init__(self, game):
         super().__init__(game)
@@ -471,7 +465,7 @@ class BarangayCaptainState(State):
                 self.selected_choice = None
 
     def draw(self, screen):
-        # Generate gradient if needed (handles dynamic screen size in fullscreen)
+        # make background gradient (only redo if screen size changed)
         current_dims = (config.SCREEN_WIDTH, config.SCREEN_HEIGHT)
         if BarangayCaptainState._gradient_bg is None or self._cached_dimensions != current_dims:
             h = config.SCREEN_HEIGHT
@@ -647,7 +641,7 @@ class BarangayCaptainState(State):
 # ---------------------------------------------------------------------------
 
 class RecipeGameState(State):
-    """Recipe reading & comprehension game."""
+    """recipe reading game"""
 
     _gradient_bg = None
 
@@ -683,7 +677,7 @@ class RecipeGameState(State):
         return qs.get(lang, qs['english'])
 
     def _recipe(self):
-        """Resolve current recipe data for selected language."""
+        """get the recipe in the current language"""
         rd = config.RECIPES[self.current_recipe]
         lang = self.language or 'english'
         return {
@@ -731,7 +725,7 @@ class RecipeGameState(State):
                 self.selected_choice = None
 
     def draw(self, screen):
-        # Generate gradient if needed (handles dynamic screen size in fullscreen)
+        # make background gradient (only redo if screen size changed)
         current_dims = (config.SCREEN_WIDTH, config.SCREEN_HEIGHT)
         if RecipeGameState._gradient_bg is None or self._cached_dimensions != current_dims:
             h = config.SCREEN_HEIGHT
@@ -755,7 +749,7 @@ class RecipeGameState(State):
             self._draw_complete(screen, recipe)
 
     def _draw_recipe_card(self, screen, recipe):
-        # Header
+        # title header
         hbox = pygame.Rect(30, 30, config.SCREEN_WIDTH - 60, 80)
         self.draw_retro_box(screen, hbox, config.ORANGE, config.YELLOW,
                             border_width=5)
@@ -764,7 +758,7 @@ class RecipeGameState(State):
         tr = t.get_rect(center=(config.SCREEN_WIDTH // 2, 70))
         screen.blit(ts, tr.move(3, 3)); screen.blit(t, tr)
 
-        # Ingredients
+        # ingredients list
         ibox = pygame.Rect(40, 130, 450, 560)
         self.draw_retro_box(screen, ibox, (255, 250, 230), config.ORANGE,
                             border_width=4)
@@ -780,7 +774,7 @@ class RecipeGameState(State):
                         (80, y))
             y += 28
 
-        # Directions
+        # steps/directions
         dbox = pygame.Rect(510, 130, 475, 560)
         self.draw_retro_box(screen, dbox, (255, 250, 230), config.ORANGE,
                             border_width=4)
@@ -804,7 +798,7 @@ class RecipeGameState(State):
                 ty += 24
             y += max(28, len(d_lines) * 24 + 4)
 
-        # Prompt
+        # spacebar prompt
         pbox = pygame.Rect(config.SCREEN_WIDTH // 2 - 250,
                            config.SCREEN_HEIGHT - 70, 500, 50)
         self.draw_retro_box(screen, pbox, config.BLUE, config.YELLOW,
@@ -916,11 +910,11 @@ class RecipeGameState(State):
 
 
 # ---------------------------------------------------------------------------
-# Synonym / Antonym Word Match
+# Synonym / Antonym Game
 # ---------------------------------------------------------------------------
 
 class SynonymAntonymState(State):
-    """Synonym/Antonym word-matching game."""
+    """the synonym and antonym word game"""
 
     _gradient_bg = None
 
@@ -953,7 +947,7 @@ class SynonymAntonymState(State):
                               for _ in self.questions]
 
     def _resolve(self, data_dict):
-        """Resolve a per-language dict to the current language string."""
+        """get text in the right language"""
         lang = self.language or 'english'
         return data_dict.get(lang, data_dict['english'])
 
@@ -991,7 +985,7 @@ class SynonymAntonymState(State):
                 self.selected_choice = None
 
     def draw(self, screen):
-        # Generate gradient if needed (handles dynamic screen size in fullscreen)
+        # make background gradient (only redo if screen size changed)
         current_dims = (config.SCREEN_WIDTH, config.SCREEN_HEIGHT)
         if SynonymAntonymState._gradient_bg is None or self._cached_dimensions != current_dims:
             h = config.SCREEN_HEIGHT
