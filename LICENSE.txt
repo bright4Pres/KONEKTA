@@ -132,17 +132,3 @@ Any amendment must be in writing and signed by authorized representatives of bot
 
 By installing, copying, modifying, or using the Software, the Licensee confirms
 acceptance of this Agreement.
-
-15) SIGNATURES
-
-LICENSOR REPRESENTATIVE
-Name: ______________________________________
-Role/Title: _________________________________
-Signature: __________________________________
-Date: _______________________________________
-
-LICENSEE REPRESENTATIVE (SAES)
-Name: ______________________________________
-Role/Title: _________________________________
-Signature: __________________________________
-Date: _______________________________________
