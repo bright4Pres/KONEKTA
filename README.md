@@ -171,3 +171,15 @@ Project KONEKTA - Horizon 2
 Philippine Science High School - Zamboanga Research Center (PSHS-ZRC)
 
 Partner school: San Alfonso Elementary School (SAES)
+
+## Legal Notice
+
+Primary legal terms are in:
+
+- `LICENSE.txt`
+
+Supplemental project notice file:
+
+- `COPYRIGHT_AND_DISTRIBUTION_NOTICE.md`
+
+Use these files to enforce ownership attribution and prohibit unauthorized redistribution or false authorship claims.
