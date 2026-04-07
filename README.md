@@ -1,169 +1,173 @@
 # KONEKTA
 
-A literacy learning game built with Pygame, featuring multiple educational mini-games to help students improve reading comprehension, decision-making, and vocabulary skills.
+KONEKTA is a classroom literacy arcade built with Pygame. Students move around a tilemap, enter mini-games, answer questions, and get tracked on a local leaderboard.
 
-## Features
+The project is designed for offline school deployment, with local data storage through SQLite.
 
-- **Barangay Captain Simulator**: Decision-making game where players resolve community complaints by choosing appropriate responses.
-- **Recipe Game**: Reading comprehension exercise where players follow cooking instructions and answer questions about recipes.
-- **Synonym/Antonym Word Match**: Vocabulary game that tests knowledge of synonyms and antonyms through multiple-choice questions.
-- Retro pixel art style with smooth animations
-- Language selection: English, Filipino, and Bisaya
-- Progress tracking with SQLite database
-- Offline-first design
+## What is in the game right now
+
+- Overworld map navigation
+- Three mini-games:
+   - Barangay Captain Simulator
+   - Recipe Game
+   - Word Match Game
+- Language options: English, Tagalog, and Bisaya/Cebuano
+- Teacher dashboard (overview + leaderboard + question editor)
+- Player profile input (student ID)
+- Local progress/session tracking
+
+## Important architecture note
+
+Question banks are now database-driven.
+
+The games read questions from the `custom_questions` table, not from hardcoded arrays in config. If no questions exist for a game/language, that game will show a "NO QUESTIONS FOUND" screen.
+
+Before classroom use, add questions in Teacher Mode.
 
 ## Requirements
 
 - Python 3.8+
-- Pygame
+- Dependencies from `requirements.txt`:
+   - `pygame-ce`
+   - `pyinstaller` (only needed when building an executable)
 
-## Installation
+## Local setup
 
-1. Clone or download the repository
+1. Clone or download this repository.
 2. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+    ```bash
+    pip install -r requirements.txt
+    ```
 3. Run the game:
-   ```
-   python main.py
-   ```
+    ```bash
+    python main.py
+    ```
 
-## How to Play
+## Build executable (Windows)
 
-The game starts with a main menu showing a tilemap with different zones. Click on a zone to start the corresponding game.
+Use the included PyInstaller spec file:
 
-- **Barangay Captain**: Read complaints and select the best response from multiple choices.
-- **Recipe Game**: Follow the recipe steps and answer comprehension questions.
-- **Synonym/Antonym**: Match words by identifying synonyms or antonyms from options.
-
-Use the language selector in each game to switch between English, Filipino, and Bisaya.
-
-## Project Structure
-
-- `main.py`: Main game loop and state management
-- `states.py`: Game state classes for different screens and games
-- `config.py`: Game data and configuration
-- `database.py`: Progress tracking database
-- `tilemap.py`: Map rendering and interaction zones
-- `resources/`: Game assets (images, fonts, audio)
-
-## Contributing
-
-Feel free to submit issues or pull requests for improvements.
+```bash
+pyinstaller KONEKTA.spec
 ```
 
-## 🎨 Asset Guidelines
+Build output folders:
 
-The game is **fully functional without assets** (uses geometric shapes and text).
+- `dist/KONEKTA/`
+- `build/KONEKTA/`
 
-### To Add Audio:
-1. Record phoneme sounds for each letter (A="Ah", B="Buh", etc.)
-2. Save as .wav or .ogg in `resources/audio/`
-3. Follow naming: `ah.wav`, `buh.wav`, etc.
-4. See `resources/audio/README.txt` for details
+## Controls
 
-### To Add Images:
-1. Create PNG images with transparency
-2. Use high-contrast colors for accessibility
-3. Save in `resources/images/`
-4. See `resources/images/README.txt` for specifications
+### Global controls
 
-## 🎓 Pedagogy
+- Arrow keys or WASD: Move on map
+- Shift: Run
+- Space or E: Enter nearby game zone
+- Tab (while on map): Edit player ID
+- Ctrl+T: Open Teacher Mode
+- Esc:
+   - In mini-game screens: return to map
+   - On the map screen: exit the app
 
-### Grade 6 Learning Objectives
-- **Phonics**: Letter-sound recognition, visual-auditory association
-- **Sentence Structure**: Word order, grammar basics, typing skills
-- **Reading Comprehension**: Context understanding, inference, critical thinking
-- **Digital Literacy**: Mouse control, keyboard skills, UI navigation
+### Mini-game controls
 
-### Assistive Features
-- **5-second inactivity timer**: Triggers audio/text hints
-- **3-second hover delay**: Provides contextual help
-- **Immediate feedback**: Corrects misconceptions in real-time
-- **Learning loops**: Re-explains concepts after wrong answers
+- 1 / 2 / 3: Select language
+- 1 / 2 / 3 / 4: Pick answer choice
+- Enter (end screen): Save score to leaderboard
+- Esc: Return to map
 
-## 👥 Configuration
+### Teacher Mode controls
 
-### Kiosk Mode
-Set in [config.py](config.py):
-```python
-KIOSK_MODE = True   # Production (fullscreen, locked)
-KIOSK_MODE = False  # Development (windowed, ESC quits)
-```
+- Password screen:
+   - Enter: submit password
+   - Esc: return to map
+- Tabs:
+   - 1: Overview
+   - 2: Leaderboard
+   - 3: Question Forge
+- F5: Refresh dashboard data
 
-### Difficulty Adjustment
-Modify in [config.py](config.py):
-- `GEMS_TO_UNLOCK_SUMMIT`: Change unlock threshold
-- `SENTENCES`: Add/edit sentence challenges
-- `STORIES`: Add/edit comprehension stories
+Question Forge shortcuts:
 
-### Teacher Password
-Change in [config.py](config.py):
-```python
-TEACHER_PASSWORD = 'your_password_here'
-```
+- Left/Right: Change target game
+- PageUp/PageDown: Change language
+- Up/Down/Tab: Move between fields
+- Enter: Next field (or save on last field)
+- F6: Save question
 
-## 📊 Database Schema
+## Teacher workflow (recommended)
 
-### Tables
-- **progress**: Individual module completions
-- **student_stats**: Cumulative student data
-- **sessions**: Login/logout tracking
+1. Launch game.
+2. Press Ctrl+T to open Teacher Mode.
+3. Log in.
+4. Open Question Forge.
+5. Add question sets for each game and language you will use.
+6. Run each mini-game once to verify content loads.
 
-### Teacher Reports
-Access via Ctrl+T → Enter password
-- Total sessions
-- Average time per module
-- Student-by-student breakdown
-- Identifies learning bottlenecks
+## Configuration
 
-## 🚀 Deployment Checklist
+Main settings live in `config.py`.
 
-### For SAES Installation:
-1. ✅ Set `KIOSK_MODE = True` in config.py
-2. ✅ Change `TEACHER_PASSWORD` in config.py
-3. ✅ Build executable: `pyinstaller --onefile --windowed main.py`
-4. ✅ Copy `dist/` folder + `resources/` to USB drive
-5. ✅ Test on oldest available hardware
-6. ✅ Print troubleshooting guide for ICT teacher
-7. ✅ Provide teacher training on dashboard access
+Most important values:
 
-### Troubleshooting Guide (for SAES ICT Teacher)
-- **Game won't start**: Check if Python is installed (not needed if using .exe)
-- **Game freezes**: Restart computer, ensure no other programs running
-- **Can't exit**: Press Ctrl+T → ESC to exit to menu
-- **Lost progress**: Check if progress.db file exists in game folder
+- `KIOSK_MODE`
+   - `True`: fullscreen kiosk behavior
+   - `False`: windowed development mode
+- `TEACHER_PASSWORD`
+- `DEFAULT_STUDENT_ID`
+- `SCREEN_WIDTH`, `SCREEN_HEIGHT`, `FPS`
 
-## 🔧 For Developers
+Database file path is also configured there (`DATABASE_NAME`, defaulting to `konekta.db`).
 
-### Critical Action Items
-- **Bright Bastasa**: Add more Grade 6-aligned stories to config.STORIES
-- **Lorenz Wee**: Record phoneme audio files per guidelines
-- **Jared Campricio**: Stress-test on PSHS-ZRC lab's oldest unit
+## Data storage
 
-### Extending the System
-1. **Add new zones**: Create new State class in states.py
-2. **Add stories**: Edit config.STORIES with new narratives
-3. **Modify difficulty**: Adjust timers and thresholds in config.py
-4. **Custom reports**: Modify database.py generate_report()
+The app uses a local SQLite file:
 
-## 📄 License & Credits
+- `konekta.db`
 
-**Project KONEKTA** - Horizon 2  
-Philippine Science High School - Zamboanga Research Center (PSHS-ZRC)  
-Partner: San Alfonso Elementary School (SAES)
+Main tables:
 
-Built with integrity, designed for impact.
+- `progress`: per-game completion logs
+- `student_stats`: cumulative student counters
+- `sessions`: session start/end + duration
+- `leaderboard`: ranked score submissions
+- `custom_questions`: teacher-authored content used by all mini-games
 
-## 🆘 Support
+## Project structure
 
-For technical issues during development:
-- Check [config.py](config.py) for settings
-- Review [database.py](database.py) for data structure
-- Examine [states.py](states.py) for game logic
+- `main.py`: app bootstrap, game loop, state switching
+- `states.py`: all game states (menu, teacher dashboard, mini-games)
+- `database.py`: SQLite schema and data access layer
+- `tilemap.py`: CSV map loading, rendering, interactions, player movement
+- `config.py`: global settings, colors/fonts, asset/database paths
+- `resources/`: map CSVs, image assets, fonts, audio
+- `KONEKTA.spec`: PyInstaller build config
 
-For deployment support:
-- Refer to troubleshooting guide above
-- Contact PSHS-ZRC ICT coordinator
-- Review session logs in progress.db
+## Asset notes
+
+Expected asset locations:
+
+- `resources/konekta/` for map CSV layers
+- `resources/images/` for sprite/tile/UI assets
+- `resources/audio/` for sound files
+
+The game can still launch with missing assets, but visuals/audio will be incomplete.
+
+## Troubleshooting
+
+- "NO QUESTIONS FOUND" in a mini-game:
+   - Add questions for that game/language in Teacher Mode -> Question Forge.
+- Teacher Mode does not open:
+   - Make sure the game window is focused, then press Ctrl+T.
+- Scores are not on leaderboard:
+   - Finish the mini-game and press Enter on the end screen to submit score.
+- Need a clean test reset:
+   - Close the app, rename/delete `konekta.db`, then relaunch.
+
+## Credits
+
+Project KONEKTA - Horizon 2
+
+Philippine Science High School - Zamboanga Research Center (PSHS-ZRC)
+
+Partner school: San Alfonso Elementary School (SAES)

@@ -7,7 +7,21 @@ import csv
 import random
 import config
 
+# dev footnotes / map layer lore:
+# - csv layers come from tiled export, names must match exactly.
+# - tile flip flags are encoded in high bits, so keep uint masking logic intact.
+# - this file also owns player sprite movement (yeah, mixed responsibility rn).
+# - interaction zones are discovered from *_gamedesignation layers.
+# - if map draws black/missing, check tileset path first before anything else.
+
 class Tilemap:
+    """tilemap loader + renderer + map interactions.
+
+    notes:
+    - draws layers in strict order for depth illusion.
+    - caches transformed tiles so frame render stays fast enough.
+    - handles zone placement + spawn detection from map data.
+    """
     def __init__(self):
         self.tile_size = 32  # tile size on map
         self.tileset_tile_size = 16  # tile size in the tileset image
@@ -406,6 +420,12 @@ class Tilemap:
 
 
 class Player:
+    """grid-ish player controller with smooth interpolation.
+
+    quick notes:
+    - movement is tile target based, but pixel lerp keeps it looking smooth.
+    - supports walk/run sprite strips with fallback box character.
+    """
     def __init__(self, start_x, start_y):
         self.tile_x = start_x
         self.tile_y = start_y

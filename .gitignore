@@ -59,3 +59,5 @@ htmlcov/
 # Image asset folders (too large for git - use the zips in the same directory)
 resources/images/lpc_male_animations_2026-02-05T00-35-56/
 resources/images/Sunnyside_World_ASSET_PACK_V2.1/
+
+generate_copyright_deposit.js
