@@ -555,6 +555,9 @@ class TeacherDashboardState(State):
 
         self.forge_game_index = 0
         self.forge_lang_index = 0
+        self.forge_mode_index = 0
+        self.difficulty_modes = []
+        self.forge_mode_editor = None
         self.forge_fields = [
             ('prompt_text', 'Context / Passage (optional)'),
             ('question_text', 'Question Text'),
@@ -572,6 +575,10 @@ class TeacherDashboardState(State):
         self.forge_game_next_rect = None
         self.forge_lang_prev_rect = None
         self.forge_lang_next_rect = None
+        self.forge_mode_prev_rect = None
+        self.forge_mode_next_rect = None
+        self.forge_mode_create_rect = None
+        self.forge_mode_rename_rect = None
         self.forge_save_rect = None
         self.leaderboard_profile_rects = []
         self.leaderboard_btn_create = None
@@ -597,17 +604,103 @@ class TeacherDashboardState(State):
     def _current_language(self):
         return ['english', 'tagalog', 'bisaya'][self.forge_lang_index]
 
+    def _current_difficulty_mode(self):
+        if not self.difficulty_modes:
+            self._refresh_difficulty_slot()
+        if not self.difficulty_modes:
+            return 'General'
+        self.forge_mode_index = max(0, min(self.forge_mode_index, len(self.difficulty_modes) - 1))
+        return self.difficulty_modes[self.forge_mode_index]
+
+    def _refresh_difficulty_slot(self):
+        self.difficulty_modes = self.game.db.get_difficulty_modes()
+        if not self.difficulty_modes:
+            self.difficulty_modes = ['General']
+
+        slot_mode = self.game.db.get_selected_difficulty_mode(
+            self._current_game_key(),
+            self._current_language(),
+        )
+
+        if slot_mode in self.difficulty_modes:
+            self.forge_mode_index = self.difficulty_modes.index(slot_mode)
+            return
+
+        self.forge_mode_index = 0
+        fallback = self.difficulty_modes[0]
+        self.game.db.set_selected_difficulty_mode(
+            self._current_game_key(),
+            self._current_language(),
+            fallback,
+        )
+
+    def _cycle_difficulty_mode(self, direction):
+        if not self.difficulty_modes:
+            self._refresh_difficulty_slot()
+        if not self.difficulty_modes:
+            return
+
+        self.forge_mode_index = (self.forge_mode_index + direction) % len(self.difficulty_modes)
+        self.game.db.set_selected_difficulty_mode(
+            self._current_game_key(),
+            self._current_language(),
+            self._current_difficulty_mode(),
+        )
+        self._refresh_recent_questions()
+
+    def _start_mode_editor(self, mode):
+        if mode == 'create':
+            self.forge_mode_editor = {
+                'mode': 'create',
+                'target': None,
+                'value': '',
+            }
+            return
+
+        current_mode = self._current_difficulty_mode()
+        self.forge_mode_editor = {
+            'mode': 'rename',
+            'target': current_mode,
+            'value': current_mode,
+        }
+
+    def _commit_mode_editor(self):
+        if not self.forge_mode_editor:
+            return
+
+        try:
+            if self.forge_mode_editor['mode'] == 'create':
+                created = self.game.db.create_difficulty_mode(self.forge_mode_editor['value'])
+                self.game.db.set_selected_difficulty_mode(
+                    self._current_game_key(),
+                    self._current_language(),
+                    created,
+                )
+                self._set_status(f'Difficulty mode created: {created}', config.GREEN)
+            else:
+                old_mode = self.forge_mode_editor['target']
+                renamed = self.game.db.rename_difficulty_mode(old_mode, self.forge_mode_editor['value'])
+                self._set_status(f'Difficulty mode renamed: {old_mode} -> {renamed}', config.GREEN)
+
+            self.refresh_data()
+        except Exception as exc:
+            self._set_status(f'Mode update failed: {exc}', config.RED)
+
+        self.forge_mode_editor = None
+
     def _refresh_recent_questions(self):
         self.recent_questions = self.game.db.get_custom_questions(
             game_key=self._current_game_key(),
             language=self._current_language(),
+            difficulty_mode=self._current_difficulty_mode(),
         )[:5]
 
     def refresh_data(self):
         self.report = self.game.db.generate_report()
         self.analytics = self.report.get('analytics', self.game.db.get_teacher_metrics())
         self.leaderboard = self.report.get('leaderboard', self.game.db.get_leaderboard(limit=20))
-        self.question_counts = self.report.get('custom_question_counts', self.game.db.get_custom_question_counts())
+        self.question_counts = self.game.db.get_custom_question_counts(include_difficulty=True)
+        self._refresh_difficulty_slot()
         self._refresh_recent_questions()
         self._refresh_profile_tracking()
 
@@ -776,6 +869,9 @@ class TeacherDashboardState(State):
         if self.tab != 'forge':
             return
 
+        if self.forge_mode_editor:
+            return
+
         if self.forge_game_prev_rect and self.forge_game_prev_rect.collidepoint(pos):
             self._cycle_game(-1)
             return
@@ -787,6 +883,18 @@ class TeacherDashboardState(State):
             return
         if self.forge_lang_next_rect and self.forge_lang_next_rect.collidepoint(pos):
             self._cycle_language(1)
+            return
+        if self.forge_mode_prev_rect and self.forge_mode_prev_rect.collidepoint(pos):
+            self._cycle_difficulty_mode(-1)
+            return
+        if self.forge_mode_next_rect and self.forge_mode_next_rect.collidepoint(pos):
+            self._cycle_difficulty_mode(1)
+            return
+        if self.forge_mode_create_rect and self.forge_mode_create_rect.collidepoint(pos):
+            self._start_mode_editor('create')
+            return
+        if self.forge_mode_rename_rect and self.forge_mode_rename_rect.collidepoint(pos):
+            self._start_mode_editor('rename')
             return
         if self.forge_save_rect and self.forge_save_rect.collidepoint(pos):
             self._save_forge_question()
@@ -801,6 +909,8 @@ class TeacherDashboardState(State):
         self.authenticated = False
         self.password_input = ''
         self.tab = 'overview'
+        self.account_editor = None
+        self.forge_mode_editor = None
         self.refresh_data()
         self._reset_forge_form()
 
@@ -821,10 +931,12 @@ class TeacherDashboardState(State):
 
     def _cycle_game(self, direction):
         self.forge_game_index = (self.forge_game_index + direction) % len(QUESTION_GAME_KEYS)
+        self._refresh_difficulty_slot()
         self._refresh_recent_questions()
 
     def _cycle_language(self, direction):
         self.forge_lang_index = (self.forge_lang_index + direction) % 3
+        self._refresh_difficulty_slot()
         self._refresh_recent_questions()
 
     def _save_forge_question(self):
@@ -844,18 +956,33 @@ class TeacherDashboardState(State):
             self.game.db.add_custom_question(
                 game_key=self._current_game_key(),
                 language=self._current_language(),
+                difficulty_mode=self._current_difficulty_mode(),
                 prompt_text=self.forge_form['prompt_text'],
                 question_text=question_text,
                 choices=choices,
                 correct_index=correct_idx,
             )
-            self._set_status('Question saved to teacher bank.', config.GREEN)
+            self._set_status(
+                f'Question saved to "{self._current_difficulty_mode()}" mode.',
+                config.GREEN,
+            )
             self._reset_forge_form()
             self.refresh_data()
         except Exception as exc:
             self._set_status(f'Cannot save: {exc}', config.RED)
 
     def _handle_forge_event(self, event):
+        if self.forge_mode_editor:
+            if event.key == pygame.K_RETURN:
+                self._commit_mode_editor()
+            elif event.key == pygame.K_ESCAPE:
+                self.forge_mode_editor = None
+            elif event.key == pygame.K_BACKSPACE:
+                self.forge_mode_editor['value'] = self.forge_mode_editor['value'][:-1]
+            elif event.unicode and event.unicode.isprintable() and len(self.forge_mode_editor['value']) < 40:
+                self.forge_mode_editor['value'] += event.unicode
+            return
+
         if event.key == pygame.K_LEFT:
             self._cycle_game(-1)
             return
@@ -867,6 +994,18 @@ class TeacherDashboardState(State):
             return
         if event.key == pygame.K_PAGEDOWN:
             self._cycle_language(1)
+            return
+        if event.key == pygame.K_LEFTBRACKET:
+            self._cycle_difficulty_mode(-1)
+            return
+        if event.key == pygame.K_RIGHTBRACKET:
+            self._cycle_difficulty_mode(1)
+            return
+        if event.key == pygame.K_F7:
+            self._start_mode_editor('create')
+            return
+        if event.key == pygame.K_F8:
+            self._start_mode_editor('rename')
             return
         if event.key == pygame.K_UP:
             self.forge_active_field = (self.forge_active_field - 1) % len(self.forge_fields)
@@ -1154,6 +1293,10 @@ class TeacherDashboardState(State):
         self.forge_game_next_rect = None
         self.forge_lang_prev_rect = None
         self.forge_lang_next_rect = None
+        self.forge_mode_prev_rect = None
+        self.forge_mode_next_rect = None
+        self.forge_mode_create_rect = None
+        self.forge_mode_rename_rect = None
         self.forge_save_rect = None
 
         gk = self._current_game_key()
@@ -1201,17 +1344,58 @@ class TeacherDashboardState(State):
         screen.blit(ln, ln.get_rect(center=self.forge_lang_next_rect.center))
         screen.blit(ll, ll.get_rect(center=lang_label_rect.center))
 
-        controls = self.small_font.render('Click fields to edit | F6 or SAVE button to submit',
-                                          True, config.LIGHT_GRAY)
-        screen.blit(controls, (left.x + 16, left.y + 136))
+        # clickable selector: difficulty mode + mode manager tools
+        mode_y = left.y + 132
+        self.forge_mode_prev_rect = pygame.Rect(left.x + 16, mode_y, 44, 34)
+        self.forge_mode_rename_rect = pygame.Rect(left.x + left.width - 112, mode_y, 96, 34)
+        self.forge_mode_create_rect = pygame.Rect(self.forge_mode_rename_rect.x - 104, mode_y, 96, 34)
+        self.forge_mode_next_rect = pygame.Rect(self.forge_mode_create_rect.x - 52, mode_y, 44, 34)
+        mode_label_rect = pygame.Rect(
+            left.x + 68,
+            mode_y,
+            self.forge_mode_next_rect.x - (left.x + 68) - 8,
+            34,
+        )
 
-        self.forge_save_rect = pygame.Rect(left.x + left.width - 180, left.y + 130, 160, 40)
+        self.draw_retro_box(screen, self.forge_mode_prev_rect, config.GREEN, config.YELLOW,
+                            border_width=3, shadow=False)
+        self.draw_retro_box(screen, mode_label_rect, (42, 72, 44), config.YELLOW,
+                            border_width=3, shadow=False)
+        self.draw_retro_box(screen, self.forge_mode_next_rect, config.GREEN, config.YELLOW,
+                            border_width=3, shadow=False)
+        self.draw_retro_box(screen, self.forge_mode_create_rect, config.BLUE, config.YELLOW,
+                            border_width=3, shadow=False)
+        self.draw_retro_box(screen, self.forge_mode_rename_rect, config.PURPLE, config.YELLOW,
+                            border_width=3, shadow=False)
+
+        mp = self.small_font.render('<', True, config.WHITE)
+        mn = self.small_font.render('>', True, config.WHITE)
+        mode_label = self._current_difficulty_mode()
+        if len(mode_label) > 20:
+            mode_label = mode_label[:17] + '...'
+        ml = self.small_font.render(f'Difficulty: {mode_label}', True, config.WHITE)
+        mc = self.small_font.render('NEW', True, config.WHITE)
+        mr = self.small_font.render('RENAME', True, config.WHITE)
+        screen.blit(mp, mp.get_rect(center=self.forge_mode_prev_rect.center))
+        screen.blit(mn, mn.get_rect(center=self.forge_mode_next_rect.center))
+        screen.blit(ml, ml.get_rect(center=mode_label_rect.center))
+        screen.blit(mc, mc.get_rect(center=self.forge_mode_create_rect.center))
+        screen.blit(mr, mr.get_rect(center=self.forge_mode_rename_rect.center))
+
+        controls = self.small_font.render(
+            'Click fields to edit | F6 save | [ ] switch difficulty | F7/F8 mode tools',
+            True,
+            config.LIGHT_GRAY,
+        )
+        screen.blit(controls, (left.x + 16, left.y + 176))
+
+        self.forge_save_rect = pygame.Rect(left.x + left.width - 180, left.y + 170, 160, 40)
         self.draw_retro_box(screen, self.forge_save_rect, config.GREEN, config.YELLOW,
                             border_width=3, shadow=False)
         save_text = self.small_font.render('SAVE', True, config.WHITE)
         screen.blit(save_text, save_text.get_rect(center=self.forge_save_rect.center))
 
-        y = left.y + 184
+        y = left.y + 226
         for i, (field_name, field_label) in enumerate(self.forge_fields):
             field_rect = pygame.Rect(left.x + 16, y, left.width - 32, 60)
             active = i == self.forge_active_field
@@ -1229,18 +1413,21 @@ class TeacherDashboardState(State):
             screen.blit(value, (field_rect.x + 10, field_rect.y + 30))
             y += 68
 
-        counts_map = {(g, l): c for g, l, c in self.question_counts}
-        title2 = self.font.render('Bank Counts', True, config.YELLOW)
+        active_mode = self._current_difficulty_mode()
+        counts_map = {(g, l, m): c for g, l, m, c in self.question_counts}
+        title2 = self.font.render('Bank Counts (Active Mode)', True, config.YELLOW)
         screen.blit(title2, (right.x + 14, right.y + 14))
+        active_text = self.small_font.render(f'Mode: {active_mode}', True, config.LIGHT_BLUE)
+        screen.blit(active_text, (right.x + 14, right.y + 52))
 
-        y = right.y + 56
+        y = right.y + 82
         for game_key in QUESTION_GAME_KEYS:
             line = f"{QUESTION_GAME_LABELS[game_key]}"
             txt = self.small_font.render(line, True, config.WHITE)
             screen.blit(txt, (right.x + 14, y))
             y += 24
             for language in ('english', 'tagalog', 'bisaya'):
-                count = counts_map.get((game_key, language), 0)
+                count = counts_map.get((game_key, language, active_mode), 0)
                 row = self.small_font.render(
                     f"  {LANGUAGE_LABELS[language]}: {count}",
                     True,
@@ -1261,6 +1448,28 @@ class TeacherDashboardState(State):
             line = self.small_font.render(f"#{row['id']} {q}", True, config.WHITE)
             screen.blit(line, (right.x + 14, y))
             y += 24
+
+        if self.forge_mode_editor:
+            overlay = pygame.Surface((config.SCREEN_WIDTH, config.SCREEN_HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 165))
+            screen.blit(overlay, (0, 0))
+
+            panel = pygame.Rect(config.SCREEN_WIDTH // 2 - 320, config.SCREEN_HEIGHT // 2 - 120, 640, 240)
+            self.draw_retro_box(screen, panel, (16, 24, 42), config.YELLOW, border_width=5)
+            editor_mode = self.forge_mode_editor['mode']
+            mode_title = 'CREATE DIFFICULTY MODE' if editor_mode == 'create' else 'RENAME DIFFICULTY MODE'
+            title = self.font.render(mode_title, True, config.YELLOW)
+            screen.blit(title, title.get_rect(center=(config.SCREEN_WIDTH // 2, panel.y + 46)))
+
+            input_box = pygame.Rect(panel.x + 36, panel.y + 92, panel.width - 72, 58)
+            self.draw_retro_box(screen, input_box, config.WHITE, config.BLUE, border_width=4, shadow=False)
+            cursor = '|' if int(time.time() * 2) % 2 == 0 else ''
+            value = self.forge_mode_editor['value'] + cursor
+            text = self.font.render(value, True, config.BLACK)
+            screen.blit(text, text.get_rect(midleft=(input_box.x + 10, input_box.centery)))
+
+            hint = self.small_font.render('ENTER: Save  |  ESC: Cancel', True, config.WHITE)
+            screen.blit(hint, hint.get_rect(center=(config.SCREEN_WIDTH // 2, panel.y + 192)))
 
     def draw(self, screen):
         # dark arcade room base
@@ -1308,7 +1517,11 @@ class TeacherDashboardState(State):
             else:
                 self._draw_forge(screen)
 
-            hint = self.small_font.render('F1/F2/F3 Tabs  |  F5 Refresh  |  ESC Return To Map', True, config.LIGHT_GRAY)
+            hint = self.small_font.render(
+                'F1/F2/F3 Tabs  |  F5 Refresh  |  Forge: [ ] Difficulty + F7/F8 Mode Edit  |  ESC Return To Map',
+                True,
+                config.LIGHT_GRAY,
+            )
             screen.blit(hint, (40, config.SCREEN_HEIGHT - 36))
 
         if self.status_message and time.time() < self.status_until:
@@ -1348,6 +1561,7 @@ class BarangayCaptainState(State):
         self.round_start_time = 0
         self.questions = []
         self.use_custom_questions = False
+        self.active_difficulty_mode = 'General'
         self._cached_dimensions = None
 
     def enter(self):
@@ -1364,11 +1578,17 @@ class BarangayCaptainState(State):
         self.round_start_time = time.time()
         self.questions = []
         self.use_custom_questions = False
+        self.active_difficulty_mode = 'General'
 
     def _load_questions(self):
+        self.active_difficulty_mode = self.game.db.get_selected_difficulty_mode(
+            'barangay',
+            self.language,
+        )
         custom_rows = self.game.db.get_custom_questions(
             game_key='barangay',
             language=self.language,
+            difficulty_mode=self.active_difficulty_mode,
         )
 
         cooked = []
@@ -1623,7 +1843,11 @@ class BarangayCaptainState(State):
         screen.blit(title, title.get_rect(center=(config.SCREEN_WIDTH // 2, 280)))
 
         line1 = self.small_font.render('Teacher Mode > Question Forge', True, config.WHITE)
-        line2 = self.small_font.render('Add Barangay questions in this language first.', True, config.WHITE)
+        line2 = self.small_font.render(
+            f'Add Barangay questions in "{self.active_difficulty_mode}" for this language first.',
+            True,
+            config.WHITE,
+        )
         line3 = self.small_font.render('Press ESC to return to menu.', True, config.LIGHT_BLUE)
         screen.blit(line1, line1.get_rect(center=(config.SCREEN_WIDTH // 2, 350)))
         screen.blit(line2, line2.get_rect(center=(config.SCREEN_WIDTH // 2, 386)))
@@ -1703,6 +1927,7 @@ class RecipeGameState(State):
         self.round_start_time = 0
         self.custom_questions = []
         self.use_custom_questions = False
+        self.active_difficulty_mode = 'General'
         self._cached_dimensions = None
 
     def enter(self):
@@ -1720,11 +1945,17 @@ class RecipeGameState(State):
         self.round_start_time = time.time()
         self.custom_questions = []
         self.use_custom_questions = True
+        self.active_difficulty_mode = 'General'
 
     def _load_custom_questions(self):
+        self.active_difficulty_mode = self.game.db.get_selected_difficulty_mode(
+            'recipe',
+            self.language,
+        )
         custom_rows = self.game.db.get_custom_questions(
             game_key='recipe',
             language=self.language,
+            difficulty_mode=self.active_difficulty_mode,
         )
 
         cooked = []
@@ -1871,7 +2102,11 @@ class RecipeGameState(State):
         screen.blit(title, title.get_rect(center=(config.SCREEN_WIDTH // 2, 280)))
 
         line1 = self.small_font.render('Teacher Mode > Question Forge', True, config.WHITE)
-        line2 = self.small_font.render('Add Recipe questions in this language first.', True, config.WHITE)
+        line2 = self.small_font.render(
+            f'Add Recipe questions in "{self.active_difficulty_mode}" for this language first.',
+            True,
+            config.WHITE,
+        )
         line3 = self.small_font.render('Press ESC to return to menu.', True, config.LIGHT_BLUE)
         screen.blit(line1, line1.get_rect(center=(config.SCREEN_WIDTH // 2, 350)))
         screen.blit(line2, line2.get_rect(center=(config.SCREEN_WIDTH // 2, 386)))
@@ -2089,6 +2324,7 @@ class SynonymAntonymState(State):
         self.questions = []
         self.question_type = []
         self.use_custom_questions = False
+        self.active_difficulty_mode = 'General'
         self.game_finished = False
         self.score_submitted = False
         self.submit_message = ''
@@ -2105,15 +2341,21 @@ class SynonymAntonymState(State):
         self.questions = []
         self.question_type = []
         self.use_custom_questions = True
+        self.active_difficulty_mode = 'General'
         self.game_finished = False
         self.score_submitted = False
         self.submit_message = ''
         self.round_start_time = time.time()
 
     def _load_questions(self):
+        self.active_difficulty_mode = self.game.db.get_selected_difficulty_mode(
+            'synonym_antonym',
+            self.language,
+        )
         custom_rows = self.game.db.get_custom_questions(
             game_key='synonym_antonym',
             language=self.language,
+            difficulty_mode=self.active_difficulty_mode,
         )
 
         cooked = []
@@ -2262,7 +2504,11 @@ class SynonymAntonymState(State):
         screen.blit(title, title.get_rect(center=(config.SCREEN_WIDTH // 2, 280)))
 
         line1 = self.small_font.render('Teacher Mode > Question Forge', True, config.WHITE)
-        line2 = self.small_font.render('Add Word Match questions in this language first.', True, config.WHITE)
+        line2 = self.small_font.render(
+            f'Add Word Match questions in "{self.active_difficulty_mode}" for this language first.',
+            True,
+            config.WHITE,
+        )
         line3 = self.small_font.render('Press ESC to return to menu.', True, config.LIGHT_BLUE)
         screen.blit(line1, line1.get_rect(center=(config.SCREEN_WIDTH // 2, 350)))
         screen.blit(line2, line2.get_rect(center=(config.SCREEN_WIDTH // 2, 386)))

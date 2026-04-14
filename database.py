@@ -89,6 +89,7 @@ class Database:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             game_key TEXT NOT NULL,
             language TEXT NOT NULL,
+            difficulty_mode TEXT NOT NULL DEFAULT 'General',
             prompt_text TEXT,
             question_text TEXT NOT NULL,
             choices_json TEXT NOT NULL,
@@ -96,9 +97,25 @@ class Database:
             created_at TEXT
         )''')
 
+        # teacher-managed difficulty labels (ex: Grade 1, Intermediate, etc.)
+        c.execute('''CREATE TABLE IF NOT EXISTS difficulty_modes (
+            mode_name TEXT PRIMARY KEY,
+            created_at TEXT
+        )''')
+
+        # active difficulty per game+language slot, set in Teacher Mode only
+        c.execute('''CREATE TABLE IF NOT EXISTS teacher_difficulty_slots (
+            game_key TEXT NOT NULL,
+            language TEXT NOT NULL,
+            difficulty_mode TEXT NOT NULL,
+            updated_at TEXT,
+            PRIMARY KEY (game_key, language)
+        )''')
+
         # keep default profile + backfill profile table from existing activity rows.
         self._ensure_profile_cursor(c, config.DEFAULT_STUDENT_ID)
         self._sync_profiles_cursor(c)
+        self._ensure_question_difficulty_schema(c)
         
         conn.commit()
         conn.close()
@@ -128,6 +145,91 @@ class Database:
         )
         for row in cursor.fetchall():
             self._ensure_profile_cursor(cursor, row[0])
+
+    @staticmethod
+    def _normalize_difficulty_mode(mode_name):
+        """normalize and validate teacher difficulty labels"""
+        clean = ' '.join(str(mode_name).strip().split())
+        if not clean:
+            raise ValueError('Difficulty mode cannot be blank.')
+        return clean[:40]
+
+    @staticmethod
+    def _has_column(cursor, table_name, column_name):
+        """check if a sqlite table already has a column"""
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        return any(row[1] == column_name for row in cursor.fetchall())
+
+    def _ensure_difficulty_mode_cursor(self, cursor, mode_name):
+        """insert a difficulty mode if missing using existing transaction"""
+        mode = self._normalize_difficulty_mode(mode_name)
+        created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        cursor.execute(
+            """INSERT OR IGNORE INTO difficulty_modes (mode_name, created_at)
+               VALUES (?, ?)""",
+            (mode, created_at)
+        )
+        return mode
+
+    def _ensure_any_difficulty_mode_cursor(self, cursor):
+        """guarantee at least one available difficulty mode"""
+        cursor.execute(
+            """SELECT mode_name
+               FROM difficulty_modes
+               ORDER BY mode_name COLLATE NOCASE
+               LIMIT 1"""
+        )
+        row = cursor.fetchone()
+        if row:
+            return row[0]
+        return self._ensure_difficulty_mode_cursor(cursor, 'General')
+
+    def _ensure_question_difficulty_schema(self, cursor):
+        """lightweight migration path for difficulty-aware question bank"""
+        if not self._has_column(cursor, 'custom_questions', 'difficulty_mode'):
+            cursor.execute(
+                """ALTER TABLE custom_questions
+                   ADD COLUMN difficulty_mode TEXT NOT NULL DEFAULT 'General'"""
+            )
+
+        fallback_mode = self._ensure_any_difficulty_mode_cursor(cursor)
+
+        cursor.execute(
+            """UPDATE custom_questions
+               SET difficulty_mode = ?
+               WHERE difficulty_mode IS NULL OR TRIM(difficulty_mode) = ''""",
+            (fallback_mode,)
+        )
+
+        cursor.execute(
+            """SELECT DISTINCT difficulty_mode
+               FROM custom_questions
+               WHERE difficulty_mode IS NOT NULL AND TRIM(difficulty_mode) <> ''"""
+        )
+        for row in cursor.fetchall():
+            self._ensure_difficulty_mode_cursor(cursor, row[0])
+
+        now_stamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        cursor.execute(
+            """UPDATE teacher_difficulty_slots
+               SET difficulty_mode = ?, updated_at = ?
+               WHERE difficulty_mode IS NULL OR TRIM(difficulty_mode) = ''""",
+            (fallback_mode, now_stamp)
+        )
+
+        cursor.execute("SELECT game_key, language, difficulty_mode FROM teacher_difficulty_slots")
+        for game_key, language, difficulty_mode in cursor.fetchall():
+            cursor.execute(
+                "SELECT 1 FROM difficulty_modes WHERE mode_name = ? LIMIT 1",
+                (difficulty_mode,)
+            )
+            if not cursor.fetchone():
+                cursor.execute(
+                    """UPDATE teacher_difficulty_slots
+                       SET difficulty_mode = ?, updated_at = ?
+                       WHERE game_key = ? AND language = ?""",
+                    (fallback_mode, now_stamp, game_key, language)
+                )
     
     def log_progress(self, student_id, module, score, gems_earned, time_spent):
         """save what the student did"""
@@ -629,6 +731,176 @@ class Database:
             ]
         }
 
+    # --- teacher difficulty mode controls ---
+
+    def get_difficulty_modes(self):
+        """list teacher-defined difficulty labels"""
+        conn = self.get_connection()
+        c = conn.cursor()
+        self._ensure_any_difficulty_mode_cursor(c)
+        conn.commit()
+
+        c.execute(
+            """SELECT mode_name
+               FROM difficulty_modes
+               ORDER BY mode_name COLLATE NOCASE"""
+        )
+        rows = c.fetchall()
+        conn.close()
+        return [row[0] for row in rows]
+
+    def create_difficulty_mode(self, mode_name):
+        """create one new teacher difficulty mode"""
+        mode = self._normalize_difficulty_mode(mode_name)
+
+        conn = self.get_connection()
+        c = conn.cursor()
+
+        c.execute(
+            """SELECT mode_name
+               FROM difficulty_modes
+               WHERE LOWER(mode_name) = LOWER(?)
+               LIMIT 1""",
+            (mode,)
+        )
+        row = c.fetchone()
+        if row:
+            conn.close()
+            raise ValueError('That difficulty mode already exists.')
+
+        created = self._ensure_difficulty_mode_cursor(c, mode)
+        conn.commit()
+        conn.close()
+        return created
+
+    def rename_difficulty_mode(self, old_mode_name, new_mode_name):
+        """rename a difficulty mode and move linked question rows"""
+        old_mode = self._normalize_difficulty_mode(old_mode_name)
+        new_mode = self._normalize_difficulty_mode(new_mode_name)
+        if old_mode == new_mode:
+            return new_mode
+
+        conn = self.get_connection()
+        c = conn.cursor()
+
+        c.execute(
+            """SELECT mode_name
+               FROM difficulty_modes
+               WHERE LOWER(mode_name) = LOWER(?)
+               LIMIT 1""",
+            (old_mode,)
+        )
+        source_row = c.fetchone()
+        if not source_row:
+            conn.close()
+            raise ValueError('Difficulty mode not found.')
+        source_name = source_row[0]
+
+        c.execute(
+            """SELECT mode_name
+               FROM difficulty_modes
+               WHERE LOWER(mode_name) = LOWER(?)
+               LIMIT 1""",
+            (new_mode,)
+        )
+        target_row = c.fetchone()
+        if target_row and target_row[0] != source_name:
+            conn.close()
+            raise ValueError('That difficulty mode already exists.')
+
+        c.execute(
+            "UPDATE difficulty_modes SET mode_name = ? WHERE mode_name = ?",
+            (new_mode, source_name)
+        )
+        c.execute(
+            "UPDATE custom_questions SET difficulty_mode = ? WHERE difficulty_mode = ?",
+            (new_mode, source_name)
+        )
+        c.execute(
+            "UPDATE teacher_difficulty_slots SET difficulty_mode = ? WHERE difficulty_mode = ?",
+            (new_mode, source_name)
+        )
+
+        conn.commit()
+        conn.close()
+        return new_mode
+
+    def get_selected_difficulty_mode(self, game_key, language):
+        """active difficulty for a game/language pair"""
+        gk = str(game_key).strip()
+        lang = str(language).strip()
+
+        conn = self.get_connection()
+        c = conn.cursor()
+        fallback_mode = self._ensure_any_difficulty_mode_cursor(c)
+
+        c.execute(
+            """SELECT difficulty_mode
+               FROM teacher_difficulty_slots
+               WHERE game_key = ? AND language = ?""",
+            (gk, lang)
+        )
+        row = c.fetchone()
+        selected = row[0] if row and row[0] else fallback_mode
+
+        c.execute(
+            "SELECT 1 FROM difficulty_modes WHERE mode_name = ? LIMIT 1",
+            (selected,)
+        )
+        if not c.fetchone():
+            selected = fallback_mode
+
+        now_stamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        c.execute(
+            """INSERT INTO teacher_difficulty_slots
+               (game_key, language, difficulty_mode, updated_at)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(game_key, language)
+               DO UPDATE SET difficulty_mode = excluded.difficulty_mode,
+                             updated_at = excluded.updated_at""",
+            (gk, lang, selected, now_stamp)
+        )
+
+        conn.commit()
+        conn.close()
+        return selected
+
+    def set_selected_difficulty_mode(self, game_key, language, mode_name):
+        """set active difficulty for one game/language pair"""
+        gk = str(game_key).strip()
+        lang = str(language).strip()
+        mode = self._normalize_difficulty_mode(mode_name)
+
+        conn = self.get_connection()
+        c = conn.cursor()
+        c.execute(
+            """SELECT mode_name
+               FROM difficulty_modes
+               WHERE LOWER(mode_name) = LOWER(?)
+               LIMIT 1""",
+            (mode,)
+        )
+        row = c.fetchone()
+        if row:
+            mode = row[0]
+        else:
+            mode = self._ensure_difficulty_mode_cursor(c, mode)
+
+        now_stamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        c.execute(
+            """INSERT INTO teacher_difficulty_slots
+               (game_key, language, difficulty_mode, updated_at)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(game_key, language)
+               DO UPDATE SET difficulty_mode = excluded.difficulty_mode,
+                             updated_at = excluded.updated_at""",
+            (gk, lang, mode, now_stamp)
+        )
+
+        conn.commit()
+        conn.close()
+        return mode
+
     # --- custom teacher question bank ---
 
     # question-bank note:
@@ -636,7 +908,7 @@ class Database:
     # choices are stored as json for flexibility (2-4 options depending on question).
 
     def add_custom_question(self, game_key, language, prompt_text, question_text,
-                            choices, correct_index):
+                            choices, correct_index, difficulty_mode='General'):
         """add one teacher-made question"""
         clean_choices = [str(c).strip() for c in choices if str(c).strip()]
         if len(clean_choices) < 2:
@@ -649,14 +921,18 @@ class Database:
         conn = self.get_connection()
         c = conn.cursor()
 
+        mode = self._ensure_difficulty_mode_cursor(c, difficulty_mode)
+
         created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         c.execute(
             """INSERT INTO custom_questions
-               (game_key, language, prompt_text, question_text, choices_json, correct_index, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+               (game_key, language, difficulty_mode, prompt_text, question_text,
+                choices_json, correct_index, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 str(game_key).strip(),
                 str(language).strip(),
+                mode,
                 str(prompt_text).strip(),
                 str(question_text).strip(),
                 json.dumps(clean_choices, ensure_ascii=False),
@@ -668,12 +944,12 @@ class Database:
         conn.commit()
         conn.close()
 
-    def get_custom_questions(self, game_key=None, language=None):
-        """get custom questions filtered by game/language"""
+    def get_custom_questions(self, game_key=None, language=None, difficulty_mode=None):
+        """get custom questions filtered by game/language/difficulty"""
         conn = self.get_connection()
         c = conn.cursor()
 
-        query = """SELECT id, game_key, language, prompt_text, question_text,
+        query = """SELECT id, game_key, language, difficulty_mode, prompt_text, question_text,
                           choices_json, correct_index, created_at
                    FROM custom_questions"""
         params = []
@@ -685,6 +961,9 @@ class Database:
         if language:
             clauses.append("language = ?")
             params.append(language)
+        if difficulty_mode:
+            clauses.append("difficulty_mode = ?")
+            params.append(difficulty_mode)
         if clauses:
             query += " WHERE " + " AND ".join(clauses)
 
@@ -696,7 +975,7 @@ class Database:
         out = []
         for row in rows:
             try:
-                choices = json.loads(row[5])
+                choices = json.loads(row[6])
             except (json.JSONDecodeError, TypeError):
                 choices = []
 
@@ -704,24 +983,33 @@ class Database:
                 'id': row[0],
                 'game_key': row[1],
                 'language': row[2],
-                'prompt_text': row[3] or '',
-                'question_text': row[4],
+                'difficulty_mode': row[3],
+                'prompt_text': row[4] or '',
+                'question_text': row[5],
                 'choices': choices,
-                'correct_index': row[6],
-                'created_at': row[7],
+                'correct_index': row[7],
+                'created_at': row[8],
             })
         return out
 
-    def get_custom_question_counts(self):
-        """count how many custom questions per game/language"""
+    def get_custom_question_counts(self, include_difficulty=False):
+        """count custom questions per slot, optionally split by difficulty"""
         conn = self.get_connection()
         c = conn.cursor()
-        c.execute(
-            """SELECT game_key, language, COUNT(*)
-               FROM custom_questions
-               GROUP BY game_key, language
-               ORDER BY game_key, language"""
-        )
+        if include_difficulty:
+            c.execute(
+                """SELECT game_key, language, difficulty_mode, COUNT(*)
+                   FROM custom_questions
+                   GROUP BY game_key, language, difficulty_mode
+                   ORDER BY game_key, language, difficulty_mode"""
+            )
+        else:
+            c.execute(
+                """SELECT game_key, language, COUNT(*)
+                   FROM custom_questions
+                   GROUP BY game_key, language
+                   ORDER BY game_key, language"""
+            )
         rows = c.fetchall()
         conn.close()
         return rows
