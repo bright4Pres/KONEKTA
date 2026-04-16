@@ -90,6 +90,7 @@ class Database:
             game_key TEXT NOT NULL,
             language TEXT NOT NULL,
             difficulty_mode TEXT NOT NULL DEFAULT 'General',
+            recipe_key TEXT NOT NULL DEFAULT '',
             prompt_text TEXT,
             question_text TEXT NOT NULL,
             choices_json TEXT NOT NULL,
@@ -112,10 +113,18 @@ class Database:
             PRIMARY KEY (game_key, language)
         )''')
 
+        # globally active teacher profile mode; applies to all games/languages.
+        c.execute('''CREATE TABLE IF NOT EXISTS teacher_global_mode (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            mode_name TEXT NOT NULL,
+            updated_at TEXT
+        )''')
+
         # keep default profile + backfill profile table from existing activity rows.
         self._ensure_profile_cursor(c, config.DEFAULT_STUDENT_ID)
         self._sync_profiles_cursor(c)
         self._ensure_question_difficulty_schema(c)
+        self._ensure_global_mode_cursor(c)
         
         conn.commit()
         conn.close()
@@ -155,6 +164,12 @@ class Database:
         return clean[:40]
 
     @staticmethod
+    def _normalize_recipe_key(recipe_key):
+        """normalize recipe key slug used for recipe game question buckets"""
+        clean = '_'.join(str(recipe_key).strip().lower().split())
+        return clean[:40]
+
+    @staticmethod
     def _has_column(cursor, table_name, column_name):
         """check if a sqlite table already has a column"""
         cursor.execute(f"PRAGMA table_info({table_name})")
@@ -184,12 +199,48 @@ class Database:
             return row[0]
         return self._ensure_difficulty_mode_cursor(cursor, 'General')
 
+    def _ensure_global_mode_cursor(self, cursor):
+        """ensure there is one valid globally-selected teacher profile mode"""
+        fallback_mode = self._ensure_any_difficulty_mode_cursor(cursor)
+
+        cursor.execute(
+            """SELECT mode_name
+               FROM teacher_global_mode
+               WHERE id = 1"""
+        )
+        row = cursor.fetchone()
+        selected = row[0] if row and row[0] else fallback_mode
+
+        cursor.execute(
+            "SELECT 1 FROM difficulty_modes WHERE mode_name = ? LIMIT 1",
+            (selected,)
+        )
+        if not cursor.fetchone():
+            selected = fallback_mode
+
+        now_stamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        cursor.execute(
+            """INSERT INTO teacher_global_mode (id, mode_name, updated_at)
+               VALUES (1, ?, ?)
+               ON CONFLICT(id)
+               DO UPDATE SET mode_name = excluded.mode_name,
+                             updated_at = excluded.updated_at""",
+            (selected, now_stamp)
+        )
+        return selected
+
     def _ensure_question_difficulty_schema(self, cursor):
         """lightweight migration path for difficulty-aware question bank"""
         if not self._has_column(cursor, 'custom_questions', 'difficulty_mode'):
             cursor.execute(
                 """ALTER TABLE custom_questions
                    ADD COLUMN difficulty_mode TEXT NOT NULL DEFAULT 'General'"""
+            )
+
+        if not self._has_column(cursor, 'custom_questions', 'recipe_key'):
+            cursor.execute(
+                """ALTER TABLE custom_questions
+                   ADD COLUMN recipe_key TEXT NOT NULL DEFAULT ''"""
             )
 
         fallback_mode = self._ensure_any_difficulty_mode_cursor(cursor)
@@ -199,6 +250,12 @@ class Database:
                SET difficulty_mode = ?
                WHERE difficulty_mode IS NULL OR TRIM(difficulty_mode) = ''""",
             (fallback_mode,)
+        )
+
+        cursor.execute(
+            """UPDATE custom_questions
+               SET recipe_key = ''
+               WHERE recipe_key IS NULL"""
         )
 
         cursor.execute(
@@ -230,6 +287,8 @@ class Database:
                        WHERE game_key = ? AND language = ?""",
                     (fallback_mode, now_stamp, game_key, language)
                 )
+
+        self._ensure_global_mode_cursor(cursor)
     
     def log_progress(self, student_id, module, score, gems_earned, time_spent):
         """save what the student did"""
@@ -820,55 +879,26 @@ class Database:
             "UPDATE teacher_difficulty_slots SET difficulty_mode = ? WHERE difficulty_mode = ?",
             (new_mode, source_name)
         )
+        c.execute(
+            "UPDATE teacher_global_mode SET mode_name = ? WHERE mode_name = ?",
+            (new_mode, source_name)
+        )
 
         conn.commit()
         conn.close()
         return new_mode
 
-    def get_selected_difficulty_mode(self, game_key, language):
-        """active difficulty for a game/language pair"""
-        gk = str(game_key).strip()
-        lang = str(language).strip()
-
+    def get_active_profile_mode(self):
+        """globally selected teacher profile mode applied across all games"""
         conn = self.get_connection()
         c = conn.cursor()
-        fallback_mode = self._ensure_any_difficulty_mode_cursor(c)
-
-        c.execute(
-            """SELECT difficulty_mode
-               FROM teacher_difficulty_slots
-               WHERE game_key = ? AND language = ?""",
-            (gk, lang)
-        )
-        row = c.fetchone()
-        selected = row[0] if row and row[0] else fallback_mode
-
-        c.execute(
-            "SELECT 1 FROM difficulty_modes WHERE mode_name = ? LIMIT 1",
-            (selected,)
-        )
-        if not c.fetchone():
-            selected = fallback_mode
-
-        now_stamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        c.execute(
-            """INSERT INTO teacher_difficulty_slots
-               (game_key, language, difficulty_mode, updated_at)
-               VALUES (?, ?, ?, ?)
-               ON CONFLICT(game_key, language)
-               DO UPDATE SET difficulty_mode = excluded.difficulty_mode,
-                             updated_at = excluded.updated_at""",
-            (gk, lang, selected, now_stamp)
-        )
-
+        selected = self._ensure_global_mode_cursor(c)
         conn.commit()
         conn.close()
         return selected
 
-    def set_selected_difficulty_mode(self, game_key, language, mode_name):
-        """set active difficulty for one game/language pair"""
-        gk = str(game_key).strip()
-        lang = str(language).strip()
+    def set_active_profile_mode(self, mode_name):
+        """set the globally selected teacher profile mode"""
         mode = self._normalize_difficulty_mode(mode_name)
 
         conn = self.get_connection()
@@ -888,17 +918,47 @@ class Database:
 
         now_stamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         c.execute(
-            """INSERT INTO teacher_difficulty_slots
-               (game_key, language, difficulty_mode, updated_at)
-               VALUES (?, ?, ?, ?)
-               ON CONFLICT(game_key, language)
-               DO UPDATE SET difficulty_mode = excluded.difficulty_mode,
+            """INSERT INTO teacher_global_mode (id, mode_name, updated_at)
+               VALUES (1, ?, ?)
+               ON CONFLICT(id)
+               DO UPDATE SET mode_name = excluded.mode_name,
                              updated_at = excluded.updated_at""",
-            (gk, lang, mode, now_stamp)
+            (mode, now_stamp)
         )
 
         conn.commit()
         conn.close()
+        return mode
+
+    def get_selected_difficulty_mode(self, game_key, language):
+        """active profile mode (global), kept for backward compatibility"""
+        # game_key/language args are intentionally ignored now; profile mode is global.
+        return self.get_active_profile_mode()
+
+    def set_selected_difficulty_mode(self, game_key, language, mode_name):
+        """set active profile mode (global), kept for backward compatibility"""
+        gk = str(game_key).strip()
+        lang = str(language).strip()
+
+        mode = self.set_active_profile_mode(mode_name)
+
+        # Keep per-slot rows in sync for legacy analytics/readability.
+        if gk and lang:
+            conn = self.get_connection()
+            c = conn.cursor()
+            now_stamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            c.execute(
+                """INSERT INTO teacher_difficulty_slots
+                   (game_key, language, difficulty_mode, updated_at)
+                   VALUES (?, ?, ?, ?)
+                   ON CONFLICT(game_key, language)
+                   DO UPDATE SET difficulty_mode = excluded.difficulty_mode,
+                                 updated_at = excluded.updated_at""",
+                (gk, lang, mode, now_stamp)
+            )
+            conn.commit()
+            conn.close()
+
         return mode
 
     # --- custom teacher question bank ---
@@ -908,7 +968,8 @@ class Database:
     # choices are stored as json for flexibility (2-4 options depending on question).
 
     def add_custom_question(self, game_key, language, prompt_text, question_text,
-                            choices, correct_index, difficulty_mode='General'):
+                            choices, correct_index, difficulty_mode='General',
+                            recipe_key=''):
         """add one teacher-made question"""
         clean_choices = [str(c).strip() for c in choices if str(c).strip()]
         if len(clean_choices) < 2:
@@ -922,17 +983,19 @@ class Database:
         c = conn.cursor()
 
         mode = self._ensure_difficulty_mode_cursor(c, difficulty_mode)
+        recipe = self._normalize_recipe_key(recipe_key)
 
         created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         c.execute(
             """INSERT INTO custom_questions
-               (game_key, language, difficulty_mode, prompt_text, question_text,
-                choices_json, correct_index, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+               (game_key, language, difficulty_mode, recipe_key, prompt_text,
+                question_text, choices_json, correct_index, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 str(game_key).strip(),
                 str(language).strip(),
                 mode,
+                recipe,
                 str(prompt_text).strip(),
                 str(question_text).strip(),
                 json.dumps(clean_choices, ensure_ascii=False),
@@ -944,13 +1007,15 @@ class Database:
         conn.commit()
         conn.close()
 
-    def get_custom_questions(self, game_key=None, language=None, difficulty_mode=None):
+    def get_custom_questions(self, game_key=None, language=None,
+                             difficulty_mode=None, recipe_key=None):
         """get custom questions filtered by game/language/difficulty"""
         conn = self.get_connection()
         c = conn.cursor()
 
-        query = """SELECT id, game_key, language, difficulty_mode, prompt_text, question_text,
-                          choices_json, correct_index, created_at
+        query = """SELECT id, game_key, language, difficulty_mode, recipe_key,
+                          prompt_text, question_text, choices_json,
+                          correct_index, created_at
                    FROM custom_questions"""
         params = []
         clauses = []
@@ -964,6 +1029,9 @@ class Database:
         if difficulty_mode:
             clauses.append("difficulty_mode = ?")
             params.append(difficulty_mode)
+        if recipe_key is not None:
+            clauses.append("recipe_key = ?")
+            params.append(self._normalize_recipe_key(recipe_key))
         if clauses:
             query += " WHERE " + " AND ".join(clauses)
 
@@ -975,7 +1043,7 @@ class Database:
         out = []
         for row in rows:
             try:
-                choices = json.loads(row[6])
+                choices = json.loads(row[7])
             except (json.JSONDecodeError, TypeError):
                 choices = []
 
@@ -984,19 +1052,27 @@ class Database:
                 'game_key': row[1],
                 'language': row[2],
                 'difficulty_mode': row[3],
-                'prompt_text': row[4] or '',
-                'question_text': row[5],
+                'recipe_key': row[4] or '',
+                'prompt_text': row[5] or '',
+                'question_text': row[6],
                 'choices': choices,
-                'correct_index': row[7],
-                'created_at': row[8],
+                'correct_index': row[8],
+                'created_at': row[9],
             })
         return out
 
-    def get_custom_question_counts(self, include_difficulty=False):
+    def get_custom_question_counts(self, include_difficulty=False, include_recipe=False):
         """count custom questions per slot, optionally split by difficulty"""
         conn = self.get_connection()
         c = conn.cursor()
-        if include_difficulty:
+        if include_difficulty and include_recipe:
+            c.execute(
+                """SELECT game_key, language, difficulty_mode, recipe_key, COUNT(*)
+                   FROM custom_questions
+                   GROUP BY game_key, language, difficulty_mode, recipe_key
+                   ORDER BY game_key, language, difficulty_mode, recipe_key"""
+            )
+        elif include_difficulty:
             c.execute(
                 """SELECT game_key, language, difficulty_mode, COUNT(*)
                    FROM custom_questions

@@ -32,6 +32,88 @@ QUESTION_GAME_LABELS = {
     'synonym_antonym': 'Word Match Game',
 }
 
+RECIPE_KEYS = ['tinola', 'adobo', 'ginisang', 'tortang_talong']
+RECIPE_LABELS = {
+    'tinola': 'Tinola',
+    'adobo': 'Adobo',
+    'ginisang': 'Ginisang Gulay',
+    'tortang_talong': 'Tortang Talong',
+}
+RECIPE_DATA = {
+    'tinola': {
+        'title': 'Tinola',
+        'description': 'A light chicken ginger soup served warm with leafy greens.',
+        'ingredients': [
+            'Chicken pieces',
+            'Ginger, garlic, onion',
+            'Green papaya or sayote',
+            'Malunggay or chili leaves',
+            'Fish sauce, water, pepper',
+        ],
+        'directions': [
+            'Saute garlic, onion, and ginger until aromatic.',
+            'Add chicken and cook until lightly browned.',
+            'Pour water, season with fish sauce, then simmer.',
+            'Add papaya or sayote and cook until tender.',
+            'Add leafy greens and serve while hot.',
+        ],
+    },
+    'adobo': {
+        'title': 'Adobo',
+        'description': 'Classic savory Filipino dish braised in soy sauce and vinegar.',
+        'ingredients': [
+            'Chicken or pork',
+            'Soy sauce and vinegar',
+            'Garlic, onion, bay leaf',
+            'Peppercorn, sugar (optional)',
+            'Water or stock',
+        ],
+        'directions': [
+            'Marinate meat in soy sauce, garlic, and pepper.',
+            'Saute aromatics and sear marinated meat.',
+            'Add marinade, vinegar, bay leaf, and water.',
+            'Simmer until meat is tender and sauce reduces.',
+            'Adjust balance of salty-sour flavor before serving.',
+        ],
+    },
+    'ginisang': {
+        'title': 'Ginisang Gulay',
+        'description': 'Sauteed mixed vegetables with a simple savory flavor.',
+        'ingredients': [
+            'Mixed vegetables',
+            'Garlic, onion, tomato',
+            'Oil for sauteing',
+            'Fish sauce or salt',
+            'Water (small amount)',
+        ],
+        'directions': [
+            'Saute garlic, onion, and tomato.',
+            'Add harder vegetables first and stir.',
+            'Season lightly with fish sauce or salt.',
+            'Add softer vegetables and cook briefly.',
+            'Keep vegetables crisp-tender before serving.',
+        ],
+    },
+    'tortang_talong': {
+        'title': 'Tortang Talong',
+        'description': 'Eggplant omelette dish that is smoky, soft, and filling.',
+        'ingredients': [
+            'Large eggplants',
+            'Eggs',
+            'Garlic and onion (optional)',
+            'Salt and pepper',
+            'Cooking oil',
+        ],
+        'directions': [
+            'Grill or roast eggplant until skin is charred.',
+            'Peel skin and flatten flesh with a fork.',
+            'Dip eggplant in beaten egg mixture.',
+            'Pan-fry until both sides are golden.',
+            'Serve hot with rice or dipping sauce.',
+        ],
+    },
+}
+
 
 def sanitize_student_id(raw_text):
     """clean student id so leaderboard names stay readable.
@@ -167,7 +249,7 @@ class State:
 
 
 class TitleScreenState(State):
-    """animated title screen with blocky pixel vibe before map starts."""
+    """cinematic blocky title screen with retro pixel atmosphere."""
 
     def __init__(self, game):
         super().__init__(game)
@@ -176,21 +258,22 @@ class TitleScreenState(State):
         self.input_unlock_at = 0.0
 
         self.title_raw = self._safe_load_image(config.TITLE_SCREEN_IMAGE_PATH)
-        self.logo_raw = self._safe_load_image(config.LOGO_IMAGE_PATH)
 
         self.title_image = None
-        self.logo_image = None
         self.bg_gradient = None
         self.scanlines = None
+        self.vignette = None
         self.layout_size = (0, 0)
 
+        self.parallax_rows = []
         self.blocks = []
         self.sparkles = []
         self.block_colors = [
             (23, 44, 74),
-            (29, 58, 94),
-            (38, 72, 112),
-            (52, 92, 138),
+            (30, 58, 92),
+            (41, 72, 112),
+            (53, 90, 134),
+            (65, 106, 152),
         ]
 
         self._refresh_layout()
@@ -220,46 +303,95 @@ class TitleScreenState(State):
         """rebuild scaled assets + decorative layers for current resolution."""
         w, h = config.SCREEN_WIDTH, config.SCREEN_HEIGHT
         self.layout_size = (w, h)
-        self.bg_gradient = self.create_gradient(
-            w,
-            h,
-            lambda i: (10 + (i * 20) // max(1, h), 24 + (i * 28) // max(1, h), 46 + (i * 34) // max(1, h)),
-        )
+
+        def _bg_color(i):
+            t = i / max(1, h - 1)
+            return (
+                int(6 + 10 * t + 22 * t * t),
+                int(14 + 20 * t + 28 * t * t),
+                int(30 + 30 * t + 40 * t * t),
+            )
+
+        self.bg_gradient = self.create_gradient(w, h, _bg_color)
 
         self.scanlines = pygame.Surface((w, h), pygame.SRCALPHA)
-        for y in range(0, h, 4):
-            pygame.draw.line(self.scanlines, (0, 0, 0, 25), (0, y), (w, y))
+        for y in range(0, h, 3):
+            alpha = 18 + ((y // 3) % 3) * 5
+            pygame.draw.line(self.scanlines, (0, 0, 0, alpha), (0, y), (w, y))
 
-        self.title_image = self._fit_image(self.title_raw, int(w * 0.82), int(h * 0.52))
-        self.logo_image = self._fit_image(self.logo_raw, int(w * 0.16), int(h * 0.14))
+        self.vignette = pygame.Surface((w, h), pygame.SRCALPHA)
+        edge_band = max(34, min(w, h) // 7)
+        for i in range(edge_band):
+            alpha = int(122 * (1.0 - (i / edge_band)) ** 2)
+            rect = pygame.Rect(i, i, w - (2 * i), h - (2 * i))
+            if rect.w <= 0 or rect.h <= 0:
+                break
+            pygame.draw.rect(self.vignette, (0, 0, 0, alpha), rect, 1)
+
+        self.title_image = self._fit_image(self.title_raw, int(w * 0.8), int(h * 0.5))
+
+        self.parallax_rows = []
+        row_specs = [
+            (int(h * 0.54), int(h * 0.2), 18.0, (16, 28, 44), (24, 40, 60)),
+            (int(h * 0.64), int(h * 0.2), 30.0, (20, 36, 56), (30, 52, 76)),
+            (int(h * 0.74), int(h * 0.19), 46.0, (24, 46, 70), (38, 64, 96)),
+        ]
+        for top, row_h, speed, color_a, color_b in row_specs:
+            chunks = []
+            cursor = -160
+            while cursor < w + 220:
+                chunk_w = random.choice([32, 40, 48, 56, 64, 72, 80, 96])
+                chunk_h = random.randint(max(14, int(row_h * 0.35)), row_h)
+                chunks.append({
+                    'x': float(cursor),
+                    'w': chunk_w,
+                    'h': chunk_h,
+                    'phase': random.uniform(0.0, math.tau),
+                })
+                cursor += chunk_w + random.randint(8, 24)
+            self.parallax_rows.append({
+                'top': top,
+                'row_h': row_h,
+                'speed': speed,
+                'color_a': color_a,
+                'color_b': color_b,
+                'chunks': chunks,
+            })
 
         self.blocks = []
-        block_count = max(18, w // 90)
+        block_count = max(24, w // 70)
         for _ in range(block_count):
-            bw = random.choice([24, 32, 40, 48, 56, 64])
-            bh = random.choice([16, 20, 24, 28, 32])
+            bw = random.choice([18, 24, 28, 32, 36, 42, 48])
+            bh = random.choice([12, 14, 16, 20, 24, 28])
             self.blocks.append({
-                'x': random.randint(-80, w + 80),
+                'x': random.randint(-120, w + 120),
                 'y': random.randint(-h, h),
                 'w': bw,
                 'h': bh,
-                'speed': random.uniform(28.0, 78.0),
-                'drift': random.uniform(-16.0, 16.0),
+                'speed': random.uniform(24.0, 74.0),
+                'drift': random.uniform(16.0, 38.0),
+                'wind': random.uniform(-11.0, 11.0),
                 'phase': random.uniform(0.0, math.tau),
                 'color': random.choice(self.block_colors),
             })
 
         self.sparkles = []
-        sparkle_count = max(50, (w * h) // 35000)
-        sparkle_palette = [config.YELLOW, config.WHITE, config.LIGHT_BLUE]
+        sparkle_count = max(70, (w * h) // 30000)
+        sparkle_palette = [
+            (255, 220, 120),
+            (245, 250, 255),
+            (136, 214, 255),
+            (255, 158, 92),
+        ]
         for _ in range(sparkle_count):
             self.sparkles.append({
-                'x': random.randint(0, w - 1),
-                'y': random.randint(0, h - 1),
-                'size': random.choice([2, 2, 3, 4]),
-                'speed': random.uniform(12.0, 42.0),
+                'x': random.uniform(0, max(1, w - 1)),
+                'y': random.uniform(0, max(1, h - 1)),
+                'size': random.choice([2, 2, 3, 3, 4]),
+                'speed': random.uniform(14.0, 46.0),
                 'phase': random.uniform(0.0, math.tau),
-                'twinkle': random.uniform(2.0, 6.0),
+                'twinkle': random.uniform(2.2, 6.4),
+                'sway': random.uniform(8.0, 26.0),
                 'color': random.choice(sparkle_palette),
             })
 
@@ -277,21 +409,47 @@ class TitleScreenState(State):
                 self.next_state = 'menu'
 
     def update(self, dt):
+        dt = min(0.06, max(0.0, dt))
         self.anim_time += dt
         w, h = self.layout_size
 
+        for row in self.parallax_rows:
+            rightmost = max((chunk['x'] + chunk['w']) for chunk in row['chunks']) if row['chunks'] else 0
+            for chunk in row['chunks']:
+                chunk['x'] -= row['speed'] * dt
+                if chunk['x'] + chunk['w'] < -140:
+                    chunk['w'] = random.choice([32, 40, 48, 56, 64, 72, 80, 96])
+                    chunk['h'] = random.randint(max(14, int(row['row_h'] * 0.35)), row['row_h'])
+                    chunk['x'] = rightmost + random.randint(10, 28)
+                    chunk['phase'] = random.uniform(0.0, math.tau)
+                    rightmost = chunk['x'] + chunk['w']
+
         for block in self.blocks:
             block['y'] += block['speed'] * dt
-            block['x'] += math.sin(self.anim_time * 0.8 + block['phase']) * block['drift'] * dt
-            if block['y'] > h + 36:
+            wobble = math.sin(self.anim_time * 1.1 + block['phase']) * block['drift']
+            block['x'] += (block['wind'] + wobble) * dt
+
+            if block['y'] > h + 48:
                 block['y'] = -block['h'] - random.randint(20, h // 2)
-                block['x'] = random.randint(-80, w + 80)
+                block['x'] = random.randint(-120, w + 120)
+
+            if block['x'] < -140:
+                block['x'] = w + random.randint(16, 100)
+            elif block['x'] > w + 140:
+                block['x'] = -block['w'] - random.randint(16, 100)
 
         for spark in self.sparkles:
-            spark['y'] += spark['speed'] * dt
-            if spark['y'] > h + spark['size']:
-                spark['y'] = -spark['size']
-                spark['x'] = random.randint(0, max(1, w - 1))
+            spark['y'] -= spark['speed'] * dt
+            spark['x'] += math.sin(self.anim_time * spark['twinkle'] + spark['phase']) * spark['sway'] * dt
+
+            if spark['y'] < -spark['size']:
+                spark['y'] = h + spark['size'] + random.randint(0, max(10, h // 4))
+                spark['x'] = random.uniform(0, max(1, w - 1))
+
+            if spark['x'] < -spark['size']:
+                spark['x'] = w + spark['size']
+            elif spark['x'] > w + spark['size']:
+                spark['x'] = -spark['size']
 
     def draw(self, screen):
         if self.layout_size != (config.SCREEN_WIDTH, config.SCREEN_HEIGHT):
@@ -302,44 +460,77 @@ class TitleScreenState(State):
         if self.bg_gradient:
             screen.blit(self.bg_gradient, (0, 0))
         else:
-            screen.fill((14, 24, 46))
+            screen.fill((12, 22, 40))
+
+        horizon_y = int(h * 0.58)
+        horizon_lines = [
+            (64, 102, 154),
+            (52, 86, 132),
+            (40, 68, 108),
+            (30, 54, 88),
+        ]
+        for idx, color in enumerate(horizon_lines):
+            line_y = horizon_y + idx * 2
+            pygame.draw.line(screen, color, (0, line_y), (w, line_y))
+
+        for row_index, row in enumerate(self.parallax_rows):
+            for chunk_index, chunk in enumerate(row['chunks']):
+                bob = int(math.sin(self.anim_time * (0.58 + row_index * 0.17) + chunk['phase']) * (1 + row_index))
+                y = row['top'] + row['row_h'] - chunk['h'] + bob
+                rect = pygame.Rect(int(chunk['x']), int(y), int(chunk['w']), int(chunk['h']))
+                color = row['color_a'] if (chunk_index % 2 == 0) else row['color_b']
+                pygame.draw.rect(screen, color, rect)
+                pygame.draw.rect(screen, (8, 14, 24), rect, 2)
+
+                if row_index > 0 and rect.h >= 22 and rect.w >= 28:
+                    window_y = rect.y + 6
+                    while window_y <= rect.bottom - 6:
+                        if ((window_y + chunk_index + row_index) // 7) % 2 == 0:
+                            pygame.draw.line(
+                                screen,
+                                (74, 116, 160),
+                                (rect.x + 4, window_y),
+                                (rect.right - 5, window_y),
+                            )
+                        window_y += 8
 
         for block in self.blocks:
             rect = pygame.Rect(int(block['x']), int(block['y']), block['w'], block['h'])
             pygame.draw.rect(screen, block['color'], rect)
-            pygame.draw.rect(screen, (10, 18, 30), rect, 2)
-            if rect.height > 5:
-                shine = pygame.Rect(rect.x + 2, rect.y + 2, max(1, rect.w - 4), 2)
-                pygame.draw.rect(screen, (130, 180, 230), shine)
+            pygame.draw.rect(screen, (8, 14, 24), rect, 2)
+            if rect.h > 5 and rect.w > 6:
+                highlight = pygame.Rect(rect.x + 2, rect.y + 2, max(1, rect.w - 4), 2)
+                shadow = pygame.Rect(rect.x + 2, rect.bottom - 3, max(1, rect.w - 4), 1)
+                pygame.draw.rect(screen, (136, 186, 236), highlight)
+                pygame.draw.rect(screen, (10, 16, 26), shadow)
 
         for spark in self.sparkles:
-            glow = 0.55 + 0.45 * (0.5 + 0.5 * math.sin(self.anim_time * spark['twinkle'] + spark['phase']))
+            twinkle = 0.5 + 0.5 * math.sin(self.anim_time * spark['twinkle'] + spark['phase'])
+            glow = 0.52 + 0.48 * twinkle
             color = tuple(min(255, int(channel * glow)) for channel in spark['color'])
-            pygame.draw.rect(
-                screen,
-                color,
-                pygame.Rect(int(spark['x']), int(spark['y']), spark['size'], spark['size']),
-            )
+            sx = int(spark['x'])
+            sy = int(spark['y'])
+            size = spark['size']
+            pygame.draw.rect(screen, color, pygame.Rect(sx, sy, size, size))
+            if size >= 3:
+                pygame.draw.line(screen, color, (sx - 1, sy + size // 2), (sx + size, sy + size // 2))
+                pygame.draw.line(screen, color, (sx + size // 2, sy - 1), (sx + size // 2, sy + size))
 
-        frame = pygame.Rect(int(w * 0.08), int(h * 0.09), int(w * 0.84), int(h * 0.78))
-        pygame.draw.rect(screen, config.BLACK, frame.move(6, 6))
-        pygame.draw.rect(screen, (14, 26, 44), frame)
+        frame = pygame.Rect(int(w * 0.07), int(h * 0.08), int(w * 0.86), int(h * 0.8))
+        pygame.draw.rect(screen, config.BLACK, frame.move(8, 8))
+        pygame.draw.rect(screen, (12, 24, 40), frame)
+        pygame.draw.rect(screen, (48, 82, 130), frame.inflate(-16, -16), 3)
         pygame.draw.rect(screen, config.YELLOW, frame, 4)
 
-        if self.logo_image:
-            logo_bob = int(math.sin(self.anim_time * 2.8) * 3)
-            logo_rect = self.logo_image.get_rect(midtop=(w // 2, frame.y + 16 + logo_bob))
-            screen.blit(self.logo_image, logo_rect)
-
         if self.title_image:
-            pulse = 1.0 + math.sin(self.anim_time * 2.2) * 0.02
+            pulse = 1.0 + math.sin(self.anim_time * 2.3) * 0.025
             tw, th = self.title_image.get_size()
             live_w = max(1, int(tw * pulse))
             live_h = max(1, int(th * pulse))
             animated_title = pygame.transform.scale(self.title_image, (live_w, live_h))
-            title_y = int(h * 0.42) + int(math.sin(self.anim_time * 1.7) * 8)
+            title_y = int(h * 0.41) + int(math.sin(self.anim_time * 1.55) * 9)
             title_rect = animated_title.get_rect(center=(w // 2, title_y))
-            screen.blit(animated_title, title_rect.move(4, 4))
+            screen.blit(animated_title, title_rect.move(5, 5))
             screen.blit(animated_title, title_rect)
         else:
             fallback = self.game.font_title.render('KONEKTA', True, config.YELLOW)
@@ -348,18 +539,18 @@ class TitleScreenState(State):
             screen.blit(fallback_shadow, fallback_rect.move(3, 3))
             screen.blit(fallback, fallback_rect)
 
-        subtitle = self.game.font_medium.render('Classroom Literacy Arcade', True, config.WHITE)
-        subtitle_rect = subtitle.get_rect(center=(w // 2, int(h * 0.64)))
-        pygame.draw.rect(screen, config.BLACK, subtitle_rect.inflate(24, 14).move(2, 2))
-        pygame.draw.rect(screen, (30, 45, 68), subtitle_rect.inflate(24, 14))
-        pygame.draw.rect(screen, config.BLUE, subtitle_rect.inflate(24, 14), 3)
-        screen.blit(subtitle, subtitle_rect)
-
-        blink_on = int((time.time() - self.entered_at) * 2.3) % 2 == 0
-        prompt_color = config.YELLOW if blink_on else config.WHITE
-        prompt = self.game.font_large.render('PRESS ANY KEY TO START', True, prompt_color)
-        prompt_shadow = self.game.font_large.render('PRESS ANY KEY TO START', True, config.BLACK)
-        prompt_rect = prompt.get_rect(center=(w // 2, int(h * 0.77)))
+        ready = time.time() >= self.input_unlock_at
+        prompt_text = 'PRESS ANY KEY TO START' if ready else 'WARMING UP...'
+        glow = 0.5 + 0.5 * math.sin(self.anim_time * 5.2)
+        prompt_color = (
+            255,
+            int(206 + 42 * glow),
+            int(72 + 96 * glow),
+        )
+        prompt = self.game.font_large.render(prompt_text, True, prompt_color)
+        prompt_shadow = self.game.font_large.render(prompt_text, True, config.BLACK)
+        prompt_y = int(h * 0.77) + int(math.sin(self.anim_time * 3.0) * 2)
+        prompt_rect = prompt.get_rect(center=(w // 2, prompt_y))
         screen.blit(prompt_shadow, prompt_rect.move(2, 2))
         screen.blit(prompt, prompt_rect)
 
@@ -369,6 +560,16 @@ class TitleScreenState(State):
 
         if self.scanlines:
             screen.blit(self.scanlines, (0, 0))
+
+        if self.vignette:
+            screen.blit(self.vignette, (0, 0))
+
+        intro_time = time.time() - self.entered_at
+        if intro_time < 0.9:
+            fade = pygame.Surface((w, h))
+            fade.fill(config.BLACK)
+            fade.set_alpha(int(255 * (1.0 - (intro_time / 0.9))))
+            screen.blit(fade, (0, 0))
 
 
 # Menu (the overworld map)
@@ -761,6 +962,7 @@ class TeacherDashboardState(State):
         self.forge_game_index = 0
         self.forge_lang_index = 0
         self.forge_mode_index = 0
+        self.forge_recipe_index = 0
         self.difficulty_modes = []
         self.forge_mode_editor = None
         self.forge_fields = [
@@ -784,6 +986,8 @@ class TeacherDashboardState(State):
         self.forge_mode_next_rect = None
         self.forge_mode_create_rect = None
         self.forge_mode_rename_rect = None
+        self.forge_recipe_prev_rect = None
+        self.forge_recipe_next_rect = None
         self.forge_save_rect = None
         self.leaderboard_profile_rects = []
         self.leaderboard_btn_create = None
@@ -809,6 +1013,9 @@ class TeacherDashboardState(State):
     def _current_language(self):
         return ['english', 'tagalog', 'bisaya'][self.forge_lang_index]
 
+    def _current_recipe_key(self):
+        return RECIPE_KEYS[self.forge_recipe_index]
+
     def _current_difficulty_mode(self):
         if not self.difficulty_modes:
             self._refresh_difficulty_slot()
@@ -822,10 +1029,7 @@ class TeacherDashboardState(State):
         if not self.difficulty_modes:
             self.difficulty_modes = ['General']
 
-        slot_mode = self.game.db.get_selected_difficulty_mode(
-            self._current_game_key(),
-            self._current_language(),
-        )
+        slot_mode = self.game.db.get_active_profile_mode()
 
         if slot_mode in self.difficulty_modes:
             self.forge_mode_index = self.difficulty_modes.index(slot_mode)
@@ -833,11 +1037,7 @@ class TeacherDashboardState(State):
 
         self.forge_mode_index = 0
         fallback = self.difficulty_modes[0]
-        self.game.db.set_selected_difficulty_mode(
-            self._current_game_key(),
-            self._current_language(),
-            fallback,
-        )
+        self.game.db.set_active_profile_mode(fallback)
 
     def _cycle_difficulty_mode(self, direction):
         if not self.difficulty_modes:
@@ -846,11 +1046,11 @@ class TeacherDashboardState(State):
             return
 
         self.forge_mode_index = (self.forge_mode_index + direction) % len(self.difficulty_modes)
-        self.game.db.set_selected_difficulty_mode(
-            self._current_game_key(),
-            self._current_language(),
-            self._current_difficulty_mode(),
-        )
+        self.game.db.set_active_profile_mode(self._current_difficulty_mode())
+        self._refresh_recent_questions()
+
+    def _cycle_recipe(self, direction):
+        self.forge_recipe_index = (self.forge_recipe_index + direction) % len(RECIPE_KEYS)
         self._refresh_recent_questions()
 
     def _start_mode_editor(self, mode):
@@ -876,16 +1076,12 @@ class TeacherDashboardState(State):
         try:
             if self.forge_mode_editor['mode'] == 'create':
                 created = self.game.db.create_difficulty_mode(self.forge_mode_editor['value'])
-                self.game.db.set_selected_difficulty_mode(
-                    self._current_game_key(),
-                    self._current_language(),
-                    created,
-                )
-                self._set_status(f'Difficulty mode created: {created}', config.GREEN)
+                self.game.db.set_active_profile_mode(created)
+                self._set_status(f'Profile mode created: {created}', config.GREEN)
             else:
                 old_mode = self.forge_mode_editor['target']
                 renamed = self.game.db.rename_difficulty_mode(old_mode, self.forge_mode_editor['value'])
-                self._set_status(f'Difficulty mode renamed: {old_mode} -> {renamed}', config.GREEN)
+                self._set_status(f'Profile mode renamed: {old_mode} -> {renamed}', config.GREEN)
 
             self.refresh_data()
         except Exception as exc:
@@ -894,11 +1090,20 @@ class TeacherDashboardState(State):
         self.forge_mode_editor = None
 
     def _refresh_recent_questions(self):
-        self.recent_questions = self.game.db.get_custom_questions(
+        rows = self.game.db.get_custom_questions(
             game_key=self._current_game_key(),
             language=self._current_language(),
             difficulty_mode=self._current_difficulty_mode(),
-        )[:5]
+        )
+
+        if self._current_game_key() == 'recipe':
+            recipe_key = self._current_recipe_key()
+            rows = [
+                row for row in rows
+                if row.get('recipe_key', '') in ('', recipe_key)
+            ]
+
+        self.recent_questions = rows[:5]
 
     def refresh_data(self):
         self.report = self.game.db.generate_report()
@@ -1101,6 +1306,12 @@ class TeacherDashboardState(State):
         if self.forge_mode_rename_rect and self.forge_mode_rename_rect.collidepoint(pos):
             self._start_mode_editor('rename')
             return
+        if self.forge_recipe_prev_rect and self.forge_recipe_prev_rect.collidepoint(pos):
+            self._cycle_recipe(-1)
+            return
+        if self.forge_recipe_next_rect and self.forge_recipe_next_rect.collidepoint(pos):
+            self._cycle_recipe(1)
+            return
         if self.forge_save_rect and self.forge_save_rect.collidepoint(pos):
             self._save_forge_question()
             return
@@ -1162,13 +1373,14 @@ class TeacherDashboardState(State):
                 game_key=self._current_game_key(),
                 language=self._current_language(),
                 difficulty_mode=self._current_difficulty_mode(),
+                recipe_key=self._current_recipe_key() if self._current_game_key() == 'recipe' else '',
                 prompt_text=self.forge_form['prompt_text'],
                 question_text=question_text,
                 choices=choices,
                 correct_index=correct_idx,
             )
             self._set_status(
-                f'Question saved to "{self._current_difficulty_mode()}" mode.',
+                f'Question saved to profile "{self._current_difficulty_mode()}".',
                 config.GREEN,
             )
             self._reset_forge_form()
@@ -1211,6 +1423,12 @@ class TeacherDashboardState(State):
             return
         if event.key == pygame.K_F8:
             self._start_mode_editor('rename')
+            return
+        if event.key == pygame.K_F9 and self._current_game_key() == 'recipe':
+            self._cycle_recipe(-1)
+            return
+        if event.key == pygame.K_F10 and self._current_game_key() == 'recipe':
+            self._cycle_recipe(1)
             return
         if event.key == pygame.K_UP:
             self.forge_active_field = (self.forge_active_field - 1) % len(self.forge_fields)
@@ -1502,6 +1720,8 @@ class TeacherDashboardState(State):
         self.forge_mode_next_rect = None
         self.forge_mode_create_rect = None
         self.forge_mode_rename_rect = None
+        self.forge_recipe_prev_rect = None
+        self.forge_recipe_next_rect = None
         self.forge_save_rect = None
 
         gk = self._current_game_key()
@@ -1549,7 +1769,7 @@ class TeacherDashboardState(State):
         screen.blit(ln, ln.get_rect(center=self.forge_lang_next_rect.center))
         screen.blit(ll, ll.get_rect(center=lang_label_rect.center))
 
-        # clickable selector: difficulty mode + mode manager tools
+        # clickable selector: global profile mode + mode manager tools
         mode_y = left.y + 132
         self.forge_mode_prev_rect = pygame.Rect(left.x + 16, mode_y, 44, 34)
         self.forge_mode_rename_rect = pygame.Rect(left.x + left.width - 112, mode_y, 96, 34)
@@ -1578,7 +1798,7 @@ class TeacherDashboardState(State):
         mode_label = self._current_difficulty_mode()
         if len(mode_label) > 20:
             mode_label = mode_label[:17] + '...'
-        ml = self.small_font.render(f'Difficulty: {mode_label}', True, config.WHITE)
+        ml = self.small_font.render(f'Profile: {mode_label}', True, config.WHITE)
         mc = self.small_font.render('NEW', True, config.WHITE)
         mr = self.small_font.render('RENAME', True, config.WHITE)
         screen.blit(mp, mp.get_rect(center=self.forge_mode_prev_rect.center))
@@ -1587,20 +1807,50 @@ class TeacherDashboardState(State):
         screen.blit(mc, mc.get_rect(center=self.forge_mode_create_rect.center))
         screen.blit(mr, mr.get_rect(center=self.forge_mode_rename_rect.center))
 
+        controls_y = left.y + 176
+        save_y = left.y + 170
+        fields_y = left.y + 226
+
+        if gk == 'recipe':
+            recipe_y = left.y + 172
+            self.forge_recipe_prev_rect = pygame.Rect(left.x + 16, recipe_y, 44, 34)
+            recipe_label_rect = pygame.Rect(left.x + 68, recipe_y, left.width - 136, 34)
+            self.forge_recipe_next_rect = pygame.Rect(left.x + left.width - 60, recipe_y, 44, 34)
+
+            self.draw_retro_box(screen, self.forge_recipe_prev_rect, config.ORANGE, config.YELLOW,
+                                border_width=3, shadow=False)
+            self.draw_retro_box(screen, recipe_label_rect, (86, 58, 24), config.YELLOW,
+                                border_width=3, shadow=False)
+            self.draw_retro_box(screen, self.forge_recipe_next_rect, config.ORANGE, config.YELLOW,
+                                border_width=3, shadow=False)
+
+            rp = self.small_font.render('<', True, config.WHITE)
+            rn = self.small_font.render('>', True, config.WHITE)
+            rkey = self._current_recipe_key()
+            rlabel = RECIPE_LABELS.get(rkey, rkey.title())
+            rl = self.small_font.render(f'Recipe Focus: {rlabel}', True, config.WHITE)
+            screen.blit(rp, rp.get_rect(center=self.forge_recipe_prev_rect.center))
+            screen.blit(rn, rn.get_rect(center=self.forge_recipe_next_rect.center))
+            screen.blit(rl, rl.get_rect(center=recipe_label_rect.center))
+
+            controls_y = left.y + 214
+            save_y = left.y + 208
+            fields_y = left.y + 264
+
         controls = self.small_font.render(
-            'Click fields to edit | F6 save | [ ] switch difficulty | F7/F8 mode tools',
+            'Click fields to edit | F6 save | [ ] switch profile | F7/F8 mode tools',
             True,
             config.LIGHT_GRAY,
         )
-        screen.blit(controls, (left.x + 16, left.y + 176))
+        screen.blit(controls, (left.x + 16, controls_y))
 
-        self.forge_save_rect = pygame.Rect(left.x + left.width - 180, left.y + 170, 160, 40)
+        self.forge_save_rect = pygame.Rect(left.x + left.width - 180, save_y, 160, 40)
         self.draw_retro_box(screen, self.forge_save_rect, config.GREEN, config.YELLOW,
                             border_width=3, shadow=False)
         save_text = self.small_font.render('SAVE', True, config.WHITE)
         screen.blit(save_text, save_text.get_rect(center=self.forge_save_rect.center))
 
-        y = left.y + 226
+        y = fields_y
         for i, (field_name, field_label) in enumerate(self.forge_fields):
             field_rect = pygame.Rect(left.x + 16, y, left.width - 32, 60)
             active = i == self.forge_active_field
@@ -1620,9 +1870,13 @@ class TeacherDashboardState(State):
 
         active_mode = self._current_difficulty_mode()
         counts_map = {(g, l, m): c for g, l, m, c in self.question_counts}
-        title2 = self.font.render('Bank Counts (Active Mode)', True, config.YELLOW)
+        title2 = self.font.render('Bank Counts (Active Profile)', True, config.YELLOW)
         screen.blit(title2, (right.x + 14, right.y + 14))
-        active_text = self.small_font.render(f'Mode: {active_mode}', True, config.LIGHT_BLUE)
+        active_text = self.small_font.render(
+            f'Profile: {active_mode} (applies to all games)',
+            True,
+            config.LIGHT_BLUE,
+        )
         screen.blit(active_text, (right.x + 14, right.y + 52))
 
         y = right.y + 82
@@ -1662,7 +1916,7 @@ class TeacherDashboardState(State):
             panel = pygame.Rect(config.SCREEN_WIDTH // 2 - 320, config.SCREEN_HEIGHT // 2 - 120, 640, 240)
             self.draw_retro_box(screen, panel, (16, 24, 42), config.YELLOW, border_width=5)
             editor_mode = self.forge_mode_editor['mode']
-            mode_title = 'CREATE DIFFICULTY MODE' if editor_mode == 'create' else 'RENAME DIFFICULTY MODE'
+            mode_title = 'CREATE PROFILE MODE' if editor_mode == 'create' else 'RENAME PROFILE MODE'
             title = self.font.render(mode_title, True, config.YELLOW)
             screen.blit(title, title.get_rect(center=(config.SCREEN_WIDTH // 2, panel.y + 46)))
 
@@ -1723,7 +1977,7 @@ class TeacherDashboardState(State):
                 self._draw_forge(screen)
 
             hint = self.small_font.render(
-                'F1/F2/F3 Tabs  |  F5 Refresh  |  Forge: [ ] Difficulty + F7/F8 Mode Edit  |  ESC Return To Map',
+                'F1/F2/F3 Tabs  |  F5 Refresh  |  Forge: [ ] Profile + F7/F8 Mode Tools + F9/F10 Recipe  |  ESC Return To Map',
                 True,
                 config.LIGHT_GRAY,
             )
@@ -2103,54 +2357,77 @@ class BarangayCaptainState(State):
 
 # Recipe Game
 class RecipeGameState(State):
-    """recipe reading game.
-
-    footnotes:
-    - now db-question driven, wrapper recipe object is mostly ui convenience.
-    - score submit mirrors other games for consistency.
-    """
+    """recipe reading game with recipe-choice + instruction flow."""
 
     _gradient_bg = None
 
     def __init__(self, game):
         super().__init__(game)
-        self.font       = pygame.font.Font(config.FONT_PATH, 24)
+        self.font = pygame.font.Font(config.FONT_PATH, 24)
         self.title_font = pygame.font.Font(config.FONT_PATH, 36)
         self.small_font = pygame.font.Font(config.FONT_PATH, 18)
-        self.current_recipe = 0
+
         self.current_question = 0
         self.score = 0
         self.selected_choice = None
         self.show_result = False
         self.result_timer = 0
-        self.recipe_shown = False
+
         self.language = None
         self.game_started = False
         self.game_finished = False
         self.score_submitted = False
         self.submit_message = ''
         self.round_start_time = 0
+
         self.custom_questions = []
-        self.use_custom_questions = False
+        self.recipe_questions = []
         self.active_difficulty_mode = 'General'
+
+        self.recipe_select_index = 0
+        self.selected_recipe_key = None
+        self.recipe_shown = False
+
         self._cached_dimensions = None
 
+    @staticmethod
+    def _normalize_recipe_key(value):
+        return '_'.join(str(value).strip().lower().split())
+
+    @staticmethod
+    def _infer_recipe_key_from_text(text):
+        raw = str(text).lower()
+        checks = [
+            ('tortang_talong', ['tortang talong', 'eggplant omelette']),
+            ('tinola', ['tinola']),
+            ('adobo', ['adobo']),
+            ('ginisang', ['ginisang']),
+        ]
+        for recipe_key, needles in checks:
+            for needle in needles:
+                if needle in raw:
+                    return recipe_key
+        return ''
+
     def enter(self):
-        self.current_recipe = 0
         self.current_question = 0
         self.score = 0
         self.selected_choice = None
         self.show_result = False
-        self.recipe_shown = True
         self.language = None
         self.game_started = False
         self.game_finished = False
         self.score_submitted = False
         self.submit_message = ''
         self.round_start_time = time.time()
+
         self.custom_questions = []
-        self.use_custom_questions = True
+        self.recipe_questions = []
         self.active_difficulty_mode = 'General'
+
+        self.recipe_select_index = 0
+        self.selected_recipe_key = None
+        self.recipe_shown = False
 
     def _load_custom_questions(self):
         self.active_difficulty_mode = self.game.db.get_selected_difficulty_mode(
@@ -2168,25 +2445,61 @@ class RecipeGameState(State):
             choices = [c for c in row['choices'] if str(c).strip()]
             if len(choices) < 2:
                 continue
+
             answer = row['correct_index']
             if answer < 0 or answer >= len(choices):
                 continue
 
+            recipe_key = self._normalize_recipe_key(row.get('recipe_key', ''))
+            if not recipe_key:
+                recipe_key = self._infer_recipe_key_from_text(
+                    f"{row.get('prompt_text', '')} {row.get('question_text', '')}"
+                )
+
             cooked.append({
+                'recipe_key': recipe_key,
                 'prompt': row['prompt_text'],
                 'q': row['question_text'],
                 'choices': choices,
                 'answer': answer,
-                'skill': 'teacher_custom',
             })
 
-        if cooked:
-            random.shuffle(cooked)
-            self.custom_questions = cooked
-            self.use_custom_questions = True
-        else:
-            self.custom_questions = []
-            self.use_custom_questions = True
+        random.shuffle(cooked)
+        self.custom_questions = cooked
+
+    def _select_recipe(self, recipe_key):
+        self.selected_recipe_key = recipe_key
+        self.recipe_shown = True
+        self.current_question = 0
+        self.score = 0
+        self.selected_choice = None
+        self.show_result = False
+        self.game_finished = False
+        self.score_submitted = False
+        self.submit_message = ''
+
+        # recipe_key='' rows are treated as generic and visible in any recipe bucket.
+        pool = [
+            row for row in self.custom_questions
+            if row.get('recipe_key', '') in ('', recipe_key)
+        ]
+        random.shuffle(pool)
+        self.recipe_questions = pool
+
+    def _questions(self):
+        return self.recipe_questions
+
+    def _recipe(self):
+        key = self.selected_recipe_key or RECIPE_KEYS[self.recipe_select_index]
+        base = RECIPE_DATA.get(key, RECIPE_DATA['tinola'])
+        return {
+            'key': key,
+            'title': base['title'],
+            'description': base['description'],
+            'ingredients': list(base['ingredients']),
+            'directions': list(base['directions']),
+            'questions': self.recipe_questions,
+        }
 
     def _submit_score(self):
         if self.score_submitted:
@@ -2214,24 +2527,13 @@ class RecipeGameState(State):
         except Exception as exc:
             self.submit_message = f'Could not save score: {exc}'
 
-    def _questions(self):
-        return self.custom_questions
-
-    def _recipe(self):
-        """db-backed recipe quiz container"""
-        return {
-            'title': 'Teacher Recipe Challenge',
-            'description': '',
-            'ingredients': [],
-            'directions': [],
-            'questions': self.custom_questions,
-        }
-
     def handle_event(self, event):
         if event.type != pygame.KEYDOWN:
             return
+
         if event.key == pygame.K_ESCAPE:
-            self.next_state = 'menu'; return
+            self.next_state = 'menu'
+            return
 
         if not self.game_started:
             lang = self.handle_language_key(event)
@@ -2239,30 +2541,69 @@ class RecipeGameState(State):
                 self.language = lang
                 self.game_started = True
                 self._load_custom_questions()
-                self.round_start_time = time.time()
-        elif self.game_finished:
+            return
+
+        if self.game_finished:
             if event.key == pygame.K_RETURN:
                 self._submit_score()
-        elif not self.show_result:
+            return
+
+        if not self.custom_questions:
+            return
+
+        if self.selected_recipe_key is None:
             if event.key in (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4):
                 idx = event.key - pygame.K_1
-                qs = self._questions()
-                if self.current_question < len(qs):
-                    q = qs[self.current_question]
-                    if idx < len(q['choices']):
-                        self.selected_choice = idx
-                        self.show_result = True
-                        self.result_timer = time.time()
-                        if idx == q['answer']:
-                            self.score += 1
+                if idx < len(RECIPE_KEYS):
+                    self.recipe_select_index = idx
+                    self._select_recipe(RECIPE_KEYS[idx])
+                return
+
+            if event.key in (pygame.K_LEFT, pygame.K_UP):
+                self.recipe_select_index = (self.recipe_select_index - 1) % len(RECIPE_KEYS)
+                return
+            if event.key in (pygame.K_RIGHT, pygame.K_DOWN):
+                self.recipe_select_index = (self.recipe_select_index + 1) % len(RECIPE_KEYS)
+                return
+            if event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                self._select_recipe(RECIPE_KEYS[self.recipe_select_index])
+                return
+            return
+
+        if self.recipe_shown:
+            if event.key == pygame.K_BACKSPACE:
+                self.selected_recipe_key = None
+                self.recipe_shown = False
+                return
+            if event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                self.recipe_shown = False
+                self.round_start_time = time.time()
+                return
+            return
+
+        if not self.recipe_questions:
+            if event.key in (pygame.K_BACKSPACE, pygame.K_r):
+                self.selected_recipe_key = None
+                self.recipe_shown = False
+            return
+
+        if not self.show_result and event.key in (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4):
+            idx = event.key - pygame.K_1
+            q = self.recipe_questions[self.current_question]
+            if idx < len(q['choices']):
+                self.selected_choice = idx
+                self.show_result = True
+                self.result_timer = time.time()
+                if idx == q['answer']:
+                    self.score += 1
 
     def update(self, dt):
-        if not self._questions():
+        if not self.recipe_questions:
             return
 
         if self.show_result and time.time() - self.result_timer > 2:
             self.current_question += 1
-            if self.current_question >= len(self._questions()):
+            if self.current_question >= len(self.recipe_questions):
                 self.game_finished = True
                 self.show_result = False
             else:
@@ -2270,17 +2611,20 @@ class RecipeGameState(State):
                 self.selected_choice = None
 
     def draw(self, screen):
-        # make background gradient (only redo if screen size changed)
         current_dims = (config.SCREEN_WIDTH, config.SCREEN_HEIGHT)
         if RecipeGameState._gradient_bg is None or self._cached_dimensions != current_dims:
             h = config.SCREEN_HEIGHT
             RecipeGameState._gradient_bg = self.create_gradient(
-                config.SCREEN_WIDTH, h,
-                lambda i: (min(255, int(220 + i / h * 35)),
-                           max(0, min(255, int(220 + i / h * 35) - 30)),
-                           max(0, min(255, int(220 + i / h * 35) - 80))))
+                config.SCREEN_WIDTH,
+                h,
+                lambda i: (
+                    min(255, int(220 + i / h * 35)),
+                    max(0, min(255, int(220 + i / h * 35) - 30)),
+                    max(0, min(255, int(220 + i / h * 35) - 80)),
+                ),
+            )
             self._cached_dimensions = current_dims
-        
+
         screen.blit(self._gradient_bg, (0, 0))
 
         if not self.game_started:
@@ -2291,147 +2635,229 @@ class RecipeGameState(State):
             self._draw_no_questions(screen)
             return
 
+        if self.selected_recipe_key is None:
+            self._draw_recipe_selection(screen)
+            return
+
         recipe = self._recipe()
+        if self.recipe_shown:
+            self._draw_recipe_card(screen, recipe)
+            return
+
+        if not self.recipe_questions:
+            self._draw_no_questions(screen, recipe_key=self.selected_recipe_key)
+            return
+
         if self.game_finished:
             self._draw_complete(screen, recipe)
-        elif self.current_question < len(self.custom_questions):
+        elif self.current_question < len(self.recipe_questions):
             self._draw_quiz(screen, recipe)
         else:
             self._draw_complete(screen, recipe)
 
-    def _draw_no_questions(self, screen):
-        box = pygame.Rect(config.SCREEN_WIDTH // 2 - 360, 220, 720, 280)
-        self.draw_retro_box(screen, box, config.ORANGE, config.YELLOW,
-                            border_width=6)
+    def _draw_no_questions(self, screen, recipe_key=None):
+        box = pygame.Rect(config.SCREEN_WIDTH // 2 - 390, 210, 780, 320)
+        self.draw_retro_box(screen, box, config.ORANGE, config.YELLOW, border_width=6)
         title = self.title_font.render('NO QUESTIONS FOUND', True, config.WHITE)
-        screen.blit(title, title.get_rect(center=(config.SCREEN_WIDTH // 2, 280)))
+        screen.blit(title, title.get_rect(center=(config.SCREEN_WIDTH // 2, 270)))
 
         line1 = self.small_font.render('Teacher Mode > Question Forge', True, config.WHITE)
-        line2 = self.small_font.render(
-            f'Add Recipe questions in "{self.active_difficulty_mode}" for this language first.',
+        screen.blit(line1, line1.get_rect(center=(config.SCREEN_WIDTH // 2, 332)))
+
+        if recipe_key:
+            recipe_name = RECIPE_LABELS.get(recipe_key, recipe_key.replace('_', ' ').title())
+            line2 = self.small_font.render(
+                f'Add Recipe questions for {recipe_name} under profile "{self.active_difficulty_mode}".',
+                True,
+                config.WHITE,
+            )
+            line3 = self.small_font.render(
+                'Set Game = Recipe and Recipe Focus = the selected dish when adding questions.',
+                True,
+                config.WHITE,
+            )
+            line4 = self.small_font.render(
+                'Press BACKSPACE to pick another recipe or ESC to return to menu.',
+                True,
+                config.LIGHT_BLUE,
+            )
+            screen.blit(line2, line2.get_rect(center=(config.SCREEN_WIDTH // 2, 372)))
+            screen.blit(line3, line3.get_rect(center=(config.SCREEN_WIDTH // 2, 406)))
+            screen.blit(line4, line4.get_rect(center=(config.SCREEN_WIDTH // 2, 450)))
+        else:
+            line2 = self.small_font.render(
+                f'Add Recipe questions in profile "{self.active_difficulty_mode}" for this language first.',
+                True,
+                config.WHITE,
+            )
+            line3 = self.small_font.render('Press ESC to return to menu.', True, config.LIGHT_BLUE)
+            screen.blit(line2, line2.get_rect(center=(config.SCREEN_WIDTH // 2, 382)))
+            screen.blit(line3, line3.get_rect(center=(config.SCREEN_WIDTH // 2, 430)))
+
+    def _draw_recipe_selection(self, screen):
+        top = pygame.Rect(30, 30, config.SCREEN_WIDTH - 60, 90)
+        self.draw_retro_box(screen, top, config.ORANGE, config.YELLOW, border_width=5)
+        title = self.title_font.render('CHOOSE A RECIPE', True, config.WHITE)
+        subtitle = self.small_font.render(
+            f'Active Profile: {self.active_difficulty_mode} (applies to all games)',
+            True,
+            config.LIGHT_BLUE,
+        )
+        screen.blit(title, title.get_rect(center=(config.SCREEN_WIDTH // 2, 64)))
+        screen.blit(subtitle, subtitle.get_rect(center=(config.SCREEN_WIDTH // 2, 98)))
+
+        counts = {}
+        for key in RECIPE_KEYS:
+            counts[key] = sum(
+                1 for row in self.custom_questions
+                if row.get('recipe_key', '') in ('', key)
+            )
+
+        card_w = 430
+        card_h = 170
+        start_x = config.SCREEN_WIDTH // 2 - card_w - 20
+        start_y = 170
+
+        for idx, key in enumerate(RECIPE_KEYS):
+            col = idx % 2
+            row = idx // 2
+            x = start_x + col * (card_w + 40)
+            y = start_y + row * (card_h + 32)
+            rect = pygame.Rect(x, y, card_w, card_h)
+
+            active = idx == self.recipe_select_index
+            fill = (110, 66, 22) if active else (72, 46, 22)
+            border = config.YELLOW if active else config.LIGHT_GRAY
+            self.draw_retro_box(screen, rect, fill, border, border_width=4)
+
+            num = self.title_font.render(str(idx + 1), True, config.YELLOW)
+            screen.blit(num, num.get_rect(midleft=(rect.x + 18, rect.y + 42)))
+
+            label = self.font.render(RECIPE_LABELS[key], True, config.WHITE)
+            screen.blit(label, (rect.x + 72, rect.y + 30))
+
+            count_text = self.small_font.render(f'Questions in this recipe: {counts[key]}', True, config.WHITE)
+            screen.blit(count_text, (rect.x + 72, rect.y + 74))
+
+            hint = self.small_font.render('Includes generic recipe rows too', True, config.LIGHT_BLUE)
+            screen.blit(hint, (rect.x + 72, rect.y + 104))
+
+        bottom = pygame.Rect(config.SCREEN_WIDTH // 2 - 470, config.SCREEN_HEIGHT - 90, 940, 52)
+        self.draw_retro_box(screen, bottom, config.BLUE, config.YELLOW, border_width=4)
+        instruction = self.small_font.render(
+            'Use 1-4 or Arrow Keys, then ENTER/SPACE to view instructions for your selected recipe.',
             True,
             config.WHITE,
         )
-        line3 = self.small_font.render('Press ESC to return to menu.', True, config.LIGHT_BLUE)
-        screen.blit(line1, line1.get_rect(center=(config.SCREEN_WIDTH // 2, 350)))
-        screen.blit(line2, line2.get_rect(center=(config.SCREEN_WIDTH // 2, 386)))
-        screen.blit(line3, line3.get_rect(center=(config.SCREEN_WIDTH // 2, 432)))
+        screen.blit(instruction, instruction.get_rect(center=bottom.center))
 
     def _draw_recipe_card(self, screen, recipe):
-        # title header
-        hbox = pygame.Rect(30, 30, config.SCREEN_WIDTH - 60, 80)
-        self.draw_retro_box(screen, hbox, config.ORANGE, config.YELLOW,
-                            border_width=5)
-        t = self.title_font.render(recipe['title'].upper(), True, config.WHITE)
-        ts = self.title_font.render(recipe['title'].upper(), True, config.BLACK)
-        tr = t.get_rect(center=(config.SCREEN_WIDTH // 2, 70))
-        screen.blit(ts, tr.move(3, 3)); screen.blit(t, tr)
+        hbox = pygame.Rect(30, 30, config.SCREEN_WIDTH - 60, 92)
+        self.draw_retro_box(screen, hbox, config.ORANGE, config.YELLOW, border_width=5)
+        title = self.title_font.render(recipe['title'].upper(), True, config.WHITE)
+        description = self.small_font.render(recipe['description'], True, config.LIGHT_BLUE)
+        screen.blit(title, title.get_rect(center=(config.SCREEN_WIDTH // 2, 66)))
+        screen.blit(description, description.get_rect(center=(config.SCREEN_WIDTH // 2, 98)))
 
-        # ingredients list
-        ibox = pygame.Rect(40, 130, 450, 560)
-        self.draw_retro_box(screen, ibox, (255, 250, 230), config.ORANGE,
-                            border_width=4)
-        ihbox = pygame.Rect(50, 140, 430, 40)
-        self.draw_retro_box(screen, ihbox, config.ORANGE, config.YELLOW,
-                            shadow=False, border_width=3)
+        ibox = pygame.Rect(40, 140, 460, 520)
+        self.draw_retro_box(screen, ibox, (255, 250, 230), config.ORANGE, border_width=4)
+        ihead = pygame.Rect(50, 150, 440, 42)
+        self.draw_retro_box(screen, ihead, config.ORANGE, config.YELLOW, shadow=False, border_width=3)
         it = self.font.render('INGREDIENTS', True, config.WHITE)
-        screen.blit(it, it.get_rect(center=ihbox.center))
-        y = 195
-        for ing in recipe['ingredients']:
-            pygame.draw.circle(screen, config.ORANGE, (65, y + 10), 5)
-            screen.blit(self.small_font.render(ing, True, config.BLACK),
-                        (80, y))
-            y += 28
+        screen.blit(it, it.get_rect(center=ihead.center))
 
-        # steps/directions
-        dbox = pygame.Rect(510, 130, 475, 560)
-        self.draw_retro_box(screen, dbox, (255, 250, 230), config.ORANGE,
-                            border_width=4)
-        dhbox = pygame.Rect(520, 140, 455, 40)
-        self.draw_retro_box(screen, dhbox, config.ORANGE, config.YELLOW,
-                            shadow=False, border_width=3)
-        dt_ = self.font.render('DIRECTIONS', True, config.WHITE)
-        screen.blit(dt_, dt_.get_rect(center=dhbox.center))
-        y = 195
-        for i, d in enumerate(recipe['directions'], 1):
-            br = pygame.Rect(525, y, 25, 25)
-            self.draw_retro_box(screen, br, config.ORANGE, config.YELLOW,
-                                shadow=False, border_width=2)
-            nt = self.small_font.render(str(i), True, config.WHITE)
-            screen.blit(nt, nt.get_rect(center=br.center))
-            d_lines = self.wrap_text_pixel(d, 300, self.small_font)
+        y = 210
+        for item in recipe['ingredients']:
+            pygame.draw.circle(screen, config.ORANGE, (70, y + 9), 5)
+            screen.blit(self.small_font.render(item, True, config.BLACK), (84, y))
+            y += 30
+
+        dbox = pygame.Rect(520, 140, 470, 520)
+        self.draw_retro_box(screen, dbox, (255, 250, 230), config.ORANGE, border_width=4)
+        dhead = pygame.Rect(530, 150, 450, 42)
+        self.draw_retro_box(screen, dhead, config.ORANGE, config.YELLOW, shadow=False, border_width=3)
+        dt = self.font.render('DIRECTIONS', True, config.WHITE)
+        screen.blit(dt, dt.get_rect(center=dhead.center))
+
+        y = 210
+        for i, step in enumerate(recipe['directions'], 1):
+            tag = pygame.Rect(535, y, 26, 26)
+            self.draw_retro_box(screen, tag, config.ORANGE, config.YELLOW, shadow=False, border_width=2)
+            num = self.small_font.render(str(i), True, config.WHITE)
+            screen.blit(num, num.get_rect(center=tag.center))
+
+            lines = self.wrap_text_pixel(step, 390, self.small_font)
             ty = y
-            for line in d_lines:
-                screen.blit(self.small_font.render(line, True, config.BLACK),
-                            (560, ty))
-                ty += 24
-            y += max(28, len(d_lines) * 24 + 4)
+            for line in lines:
+                screen.blit(self.small_font.render(line, True, config.BLACK), (570, ty))
+                ty += 22
+            y += max(30, len(lines) * 22 + 4)
 
-        # spacebar prompt
-        pbox = pygame.Rect(config.SCREEN_WIDTH // 2 - 250,
-                           config.SCREEN_HEIGHT - 70, 500, 50)
-        self.draw_retro_box(screen, pbox, config.BLUE, config.YELLOW,
-                            border_width=4)
-        sp = self.font.render('Press SPACE to start quiz', True, config.WHITE)
-        screen.blit(sp, sp.get_rect(center=pbox.center))
+        pbox = pygame.Rect(config.SCREEN_WIDTH // 2 - 380, config.SCREEN_HEIGHT - 84, 760, 56)
+        if self.recipe_questions:
+            self.draw_retro_box(screen, pbox, config.BLUE, config.YELLOW, border_width=4)
+            prompt = self.small_font.render(
+                'Press SPACE/ENTER to start quiz. BACKSPACE to choose a different recipe.',
+                True,
+                config.WHITE,
+            )
+        else:
+            self.draw_retro_box(screen, pbox, config.RED, config.YELLOW, border_width=4)
+            prompt = self.small_font.render(
+                'No questions for this recipe in this profile. BACKSPACE to pick another recipe.',
+                True,
+                config.WHITE,
+            )
+        screen.blit(prompt, prompt.get_rect(center=pbox.center))
 
     def _draw_quiz(self, screen, recipe):
-        q = recipe['questions'][self.current_question]
+        q = self.recipe_questions[self.current_question]
 
-        # Title
         tbox = pygame.Rect(30, 30, config.SCREEN_WIDTH - 60, 70)
-        self.draw_retro_box(screen, tbox, config.ORANGE, config.YELLOW,
-                            border_width=4)
-        t = self.title_font.render(recipe['title'].upper(), True, config.WHITE)
-        screen.blit(t, t.get_rect(center=(config.SCREEN_WIDTH // 2, 65)))
+        self.draw_retro_box(screen, tbox, config.ORANGE, config.YELLOW, border_width=4)
+        title = self.title_font.render(f"{recipe['title'].upper()} QUIZ", True, config.WHITE)
+        screen.blit(title, title.get_rect(center=(config.SCREEN_WIDTH // 2, 65)))
 
-        # Progress
-        pbox = pygame.Rect(30, 120, 200, 45)
+        pbox = pygame.Rect(30, 120, 250, 45)
         self.draw_retro_box(screen, pbox, config.DARK_GRAY, config.WHITE)
-        pt = self.small_font.render(
-            f'Question {self.current_question + 1}/{len(recipe["questions"])}',
-            True, config.WHITE)
-        screen.blit(pt, (40, 132))
+        ptxt = self.small_font.render(
+            f'Question {self.current_question + 1}/{len(self.recipe_questions)}',
+            True,
+            config.WHITE,
+        )
+        screen.blit(ptxt, (40, 132))
 
-        # Score
         sbox = pygame.Rect(config.SCREEN_WIDTH - 230, 120, 200, 45)
         self.draw_retro_box(screen, sbox, config.DARK_GRAY, config.WHITE)
-        screen.blit(self.small_font.render(f'Score: {self.score}', True,
-                                           config.YELLOW),
-                    (config.SCREEN_WIDTH - 210, 132))
+        stxt = self.small_font.render(f'Score: {self.score}', True, config.YELLOW)
+        screen.blit(stxt, (config.SCREEN_WIDTH - 210, 132))
 
         prompt_text = q.get('prompt', '').strip()
         question_y = 190
         if prompt_text:
             pbox = pygame.Rect(50, 190, config.SCREEN_WIDTH - 100, 90)
-            self.draw_retro_box(screen, pbox, config.LIGHT_BLUE, config.ORANGE,
-                                border_width=4)
-            pl = self.wrap_text_pixel(prompt_text, config.SCREEN_WIDTH - 160,
-                                      self.small_font)
+            self.draw_retro_box(screen, pbox, config.LIGHT_BLUE, config.ORANGE, border_width=4)
+            lines = self.wrap_text_pixel(prompt_text, config.SCREEN_WIDTH - 160, self.small_font)
             py = 205
-            for line in pl[:3]:
+            for line in lines[:3]:
                 pt = self.small_font.render(line, True, config.BLACK)
                 screen.blit(pt, pt.get_rect(center=(config.SCREEN_WIDTH // 2, py)))
                 py += 24
             question_y = 295
 
-        # Question box
         qbox = pygame.Rect(50, question_y, config.SCREEN_WIDTH - 100, 100)
-        self.draw_retro_box(screen, qbox, config.WHITE, config.ORANGE,
-                            border_width=4)
-        ql = self.wrap_text_pixel(q['q'], config.SCREEN_WIDTH - 160, self.font)
+        self.draw_retro_box(screen, qbox, config.WHITE, config.ORANGE, border_width=4)
+        q_lines = self.wrap_text_pixel(q['q'], config.SCREEN_WIDTH - 160, self.font)
         qy = question_y + 20
-        for line in ql:
+        for line in q_lines:
             qt = self.font.render(line, True, config.BLACK)
             screen.blit(qt, qt.get_rect(center=(config.SCREEN_WIDTH // 2, qy)))
             qy += 35
 
-        # Choices
         y = question_y + 130
         for i, choice in enumerate(q['choices']):
-            cl = self.wrap_text_pixel(choice, config.SCREEN_WIDTH - 220,
-                                      self.small_font)
-            ch = len(cl) * 28 + 20
+            lines = self.wrap_text_pixel(choice, config.SCREEN_WIDTH - 220, self.small_font)
+            ch = len(lines) * 28 + 20
             cbox = pygame.Rect(80, y, config.SCREEN_WIDTH - 160, ch)
 
             if self.show_result:
@@ -2448,57 +2874,47 @@ class RecipeGameState(State):
 
             bs = 30
             br = pygame.Rect(90, y + (ch - bs) // 2, bs, bs)
-            self.draw_retro_box(screen, br, config.YELLOW, config.BLACK,
-                                shadow=False, border_width=2)
+            self.draw_retro_box(screen, br, config.YELLOW, config.BLACK, shadow=False, border_width=2)
             nt = self.font.render(str(i + 1), True, config.BLACK)
             screen.blit(nt, nt.get_rect(center=br.center))
 
             ty = y + 10
-            for line in cl:
+            for line in lines:
                 screen.blit(self.small_font.render(line, True, tc), (135, ty))
                 ty += 28
             y += ch + 12
 
         if self.show_result:
-            rbox = pygame.Rect(config.SCREEN_WIDTH // 2 - 150, y + 10, 300, 50)
+            rbox = pygame.Rect(config.SCREEN_WIDTH // 2 - 170, y + 10, 340, 50)
             correct = self.selected_choice == q['answer']
-            self.draw_retro_box(screen, rbox,
-                                config.GREEN if correct else config.RED,
-                                config.WHITE, border_width=4)
-            msg = '✓ CORRECT!' if correct else '✗ WRONG!'
+            self.draw_retro_box(screen, rbox, config.GREEN if correct else config.RED, config.WHITE, border_width=4)
+            msg = 'CORRECT!' if correct else 'WRONG!'
             rt = self.font.render(msg, True, config.WHITE)
             screen.blit(rt, rt.get_rect(center=rbox.center))
 
     def _draw_complete(self, screen, recipe):
-        cbox = pygame.Rect(config.SCREEN_WIDTH // 2 - 300, 200, 600, 350)
-        self.draw_retro_box(screen, cbox, config.ORANGE, config.YELLOW,
-                            border_width=6)
-        ct = self.title_font.render('RECIPE MASTERED!', True, config.WHITE)
-        cs = self.title_font.render('RECIPE MASTERED!', True, config.BLACK)
-        cr = ct.get_rect(center=(config.SCREEN_WIDTH // 2, 270))
-        screen.blit(cs, cr.move(3, 3)); screen.blit(ct, cr)
+        cbox = pygame.Rect(config.SCREEN_WIDTH // 2 - 320, 200, 640, 350)
+        self.draw_retro_box(screen, cbox, config.ORANGE, config.YELLOW, border_width=6)
+        title = self.title_font.render(f"{recipe['title'].upper()} COMPLETE!", True, config.WHITE)
+        shadow = self.title_font.render(f"{recipe['title'].upper()} COMPLETE!", True, config.BLACK)
+        tr = title.get_rect(center=(config.SCREEN_WIDTH // 2, 270))
+        screen.blit(shadow, tr.move(3, 3))
+        screen.blit(title, tr)
 
-        total = max(1, len(recipe['questions']))
+        total = max(1, len(self.recipe_questions))
         ratio = self.score / total
         ssbox = pygame.Rect(config.SCREEN_WIDTH // 2 - 250, 350, 500, 80)
-        sc = (config.GREEN if ratio >= 0.9
-                  else config.ORANGE if ratio >= 0.6
-                  else config.RED)
-        self.draw_retro_box(screen, ssbox, sc, config.WHITE, border_width=4)
-        st = self.font.render(f'Final Score: {self.score}/{total}', True,
-                              config.WHITE)
+        fill = config.GREEN if ratio >= 0.9 else config.ORANGE if ratio >= 0.6 else config.RED
+        self.draw_retro_box(screen, ssbox, fill, config.WHITE, border_width=4)
+        st = self.font.render(f'Final Score: {self.score}/{total}', True, config.WHITE)
         screen.blit(st, st.get_rect(center=ssbox.center))
 
-        hint_text = (
-            self.submit_message if self.score_submitted
-            else 'Press ENTER to log score to leaderboard'
-        )
+        hint_text = self.submit_message if self.score_submitted else 'Press ENTER to log score to leaderboard'
         hint_color = config.GREEN if self.score_submitted else config.YELLOW
-        h = self.small_font.render(hint_text, True, hint_color)
-        screen.blit(h, h.get_rect(center=(config.SCREEN_WIDTH // 2, 480)))
+        hint = self.small_font.render(hint_text, True, hint_color)
+        screen.blit(hint, hint.get_rect(center=(config.SCREEN_WIDTH // 2, 480)))
 
-        esc = self.small_font.render('Press ESC to return to menu', True,
-                                     config.WHITE)
+        esc = self.small_font.render('Press ESC to return to menu', True, config.WHITE)
         screen.blit(esc, esc.get_rect(center=(config.SCREEN_WIDTH // 2, 508)))
 
 
