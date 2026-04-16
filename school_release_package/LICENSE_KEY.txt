@@ -1,0 +1,11 @@
+KONEKTA LICENSE / KEY INFO
+
+Product activation key:
+- NOT REQUIRED for this build.
+
+Teacher mode access key (default build setting):
+- konekta2026
+
+Note:
+- If your school requested a custom build with a changed teacher password, use the key provided by your build administrator.
+- Legal usage terms are in LICENSE.txt.

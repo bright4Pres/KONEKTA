@@ -1,0 +1,26 @@
+TROUBLESHOOTING CHECKLIST
+
+1) GAME DOES NOT OPEN
+- Re-run KONEKTA-Setup.exe.
+- Launch from Start Menu instead of old shortcut.
+- Ensure antivirus did not quarantine KONEKTA.exe.
+
+2) NO QUESTIONS FOUND
+- Enter Teacher Mode (Ctrl+T).
+- Add questions in Question Forge for the selected game/language/difficulty.
+
+3) SCORES NOT SAVING
+- At end of each mini-game, press Enter to submit score.
+- Verify database exists in %LOCALAPPDATA%\KONEKTA\konekta.db.
+
+4) NEED CLEAN RESET
+- Close the game.
+- Run reset_konekta_data.bat.
+- Relaunch game.
+
+5) NEED TO KEEP DATA SAFE
+- Run backup_konekta_database.bat before maintenance.
+
+6) NEED TO INSPECT DATABASE
+- Run open_konekta_database_file.bat.
+- If prompted, choose a SQLite viewer tool if installed.

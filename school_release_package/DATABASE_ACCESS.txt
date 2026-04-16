@@ -1,0 +1,22 @@
+DATABASE ACCESS NOTES
+
+Runtime database file:
+- %LOCALAPPDATA%\KONEKTA\konekta.db
+
+To open data folder quickly:
+- Run open_konekta_data_folder.bat
+
+To open database file quickly:
+- Run open_konekta_database_file.bat
+
+To back up the database:
+- Run backup_konekta_database.bat
+
+To reset database (delete local data):
+- Run reset_konekta_data.bat
+
+To replace with a clean template database:
+- Run install_template_database.bat
+
+Included template DB:
+- konekta_template.db

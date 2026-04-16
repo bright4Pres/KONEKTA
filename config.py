@@ -63,16 +63,15 @@ DEFAULT_STUDENT_ID = 'student_demo'
 # File paths
 # ---------------------------------------------------------------------------
 # pathing notes:
-# - frozen build uses sys._MEIPASS, local run uses this file folder.
-# - db path stays beside the app so teacher data survives normal reruns.
-# sys._MEIPASS is where pyinstaller unpacks stuff at runtime
-# otherwise just use the folder this file is in
+# - frozen build reads bundled assets from sys._MEIPASS.
+# - local source run reads assets from the project folder.
+# - db writes go to a user-writable app-data folder in packaged mode.
 if getattr(sys, 'frozen', False):
-    _BASE = sys._MEIPASS
+    RESOURCE_BASE = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(sys.executable)))
 else:
-    _BASE = os.path.dirname(os.path.abspath(__file__))
+    RESOURCE_BASE = os.path.dirname(os.path.abspath(__file__))
 
-RESOURCES_PATH = os.path.join(_BASE, 'resources')
+RESOURCES_PATH = os.path.join(RESOURCE_BASE, 'resources')
 IMAGE_PATH = os.path.join(RESOURCES_PATH, 'images')
 AUDIO_PATH = os.path.join(RESOURCES_PATH, 'audio')
 FONT_PATH = os.path.join(
@@ -83,5 +82,25 @@ FONT_PATH = os.path.join(
     'Winter Pixel Font.TTF',
 )
 
-# keep db in project folder for both source and packaged builds
-DATABASE_NAME = os.path.join(_BASE, 'konekta.db')
+def resolve_app_data_path():
+    """Choose a writable folder for persistent data."""
+    if not getattr(sys, 'frozen', False):
+        return os.path.dirname(os.path.abspath(__file__))
+
+    local_appdata = os.environ.get('LOCALAPPDATA')
+    if local_appdata:
+        return os.path.join(local_appdata, 'KONEKTA')
+
+    return os.path.join(os.path.expanduser('~'), 'AppData', 'Local', 'KONEKTA')
+
+
+APP_DATA_PATH = resolve_app_data_path()
+try:
+    os.makedirs(APP_DATA_PATH, exist_ok=True)
+except OSError:
+    # emergency fallback so runtime can still continue even if app-data path fails
+    APP_DATA_PATH = os.path.dirname(
+        os.path.abspath(sys.executable if getattr(sys, 'frozen', False) else __file__)
+    )
+
+DATABASE_NAME = os.path.join(APP_DATA_PATH, 'konekta.db')

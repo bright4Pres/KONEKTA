@@ -1,0 +1,134 @@
+KONEKTA PROPRIETARY EDUCATIONAL LICENSE AGREEMENT
+
+Version: 1.0
+Project: KONEKTA
+Effective Date: 2026-04-07
+
+This License Agreement governs the use of the KONEKTA software package,
+including source code, compiled builds, documentation, and related project files
+(collectively, the "Software").
+
+1) PARTIES
+
+Licensor (Author and Owner):
+Bright R. Bastasa
+
+Institutional Affiliation:
+Philippine Science High School - Zamboanga Region Campus (PSHS-ZRC), under the Department of Science and Technology (DOST)
+
+Institutional Rights Reservation:
+Any institutional rights of PSHS-ZRC and/or DOST that may apply under signed
+agreements, official school policy, or applicable law are reserved and not waived
+by this License.
+
+Licensee (Receiving School):
+San Alfonso Elementary School (SAES)
+
+2) COPYRIGHT OWNERSHIP
+
+Copyright (c) 2026 Bright R. Bastasa.
+All rights reserved.
+
+The Software is proprietary. Title, ownership, and all intellectual property rights
+in and to the Software remain with the Licensor. This Agreement grants a limited
+license to use and does not transfer ownership.
+
+If any written assignment, signed undertaking, or binding institutional policy
+requires shared ownership, assignment, or institutional licensing in favor of
+PSHS-ZRC and/or DOST, such requirement shall control to the extent required.
+
+3) LICENSE GRANT
+
+Subject to full compliance with this Agreement, the Licensor grants the Licensee
+a non-exclusive, non-transferable, royalty-free, revocable license to:
+
+a) install and run the Software on school-owned or school-managed devices;
+b) use the Software strictly for internal educational and instructional activities;
+c) make reasonable internal backup copies for disaster recovery.
+
+This license is limited to internal use at San Alfonso Elementary School (SAES).
+
+4) INTERNAL MODIFICATION PERMISSION
+
+The Licensee is permitted to modify the source code solely for internal school use,
+maintenance, localization, accessibility, and classroom delivery.
+
+Any modified version must:
+a) retain all original copyright and attribution notices;
+b) remain subject to this Agreement;
+c) not be distributed outside SAES without prior written permission from the Licensor.
+
+5) RESTRICTIONS
+
+Without prior written permission from the Licensor, the Licensee and any third party
+must not:
+
+a) distribute, publish, upload, transmit, or share the Software or source code externally;
+b) post the Software in public or private repositories accessible to unauthorized persons;
+c) sell, sublicense, rent, lease, or otherwise commercially exploit the Software;
+d) remove, alter, or obscure copyright, attribution, or authorship notices;
+e) represent or claim the Software, in whole or in part, as their own original work;
+f) transfer this license to another school, organization, or person.
+
+6) ATTRIBUTION REQUIREMENT
+
+Any approved copy, internal fork, or derivative used by the Licensee must include
+the following attribution in project documentation and, where practical, in an
+about screen or credits section:
+
+"KONEKTA was originally developed by student proponents from Philippine Science
+High School - Zamboanga Research Center (PSHS-ZRC), authored by
+Bright R. Bastasa."
+
+7) THIRD-PARTY COMPONENTS
+
+The Software may include third-party components (such as assets, fonts, audio,
+libraries, and tools) governed by separate licenses. This Agreement does not replace
+or override third-party license terms. The Licensee is responsible for compliance
+with applicable third-party licenses.
+
+8) SUPPORT AND MAINTENANCE
+
+No ongoing maintenance, updates, or support are guaranteed under this Agreement
+unless separately agreed in writing.
+
+9) WARRANTY DISCLAIMER
+
+THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.
+
+10) LIMITATION OF LIABILITY
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE LICENSOR SHALL NOT BE LIABLE FOR ANY
+INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES,
+INCLUDING LOSS OF DATA, LOSS OF USE, OR OPERATIONAL INTERRUPTION, ARISING FROM
+OR RELATED TO USE OF OR INABILITY TO USE THE SOFTWARE.
+
+11) TERM AND TERMINATION
+
+This Agreement takes effect on the Effective Date and remains in force until terminated.
+The Licensor may terminate this Agreement immediately upon material breach.
+
+Upon termination, the Licensee must cease any unauthorized use and unauthorized
+distribution of the Software and comply with reasonable written remediation requests
+from the Licensor.
+
+12) GOVERNING LAW
+
+This Agreement shall be governed by and construed in accordance with the laws of the
+Republic of the Philippines, without prejudice to applicable school and Department
+of Education policies.
+
+13) ENTIRE AGREEMENT
+
+This document constitutes the entire agreement regarding the licensed use of the
+Software between the Parties and supersedes prior oral or written understandings
+on the same subject matter.
+
+Any amendment must be in writing and signed by authorized representatives of both Parties.
+
+14) ACCEPTANCE
+
+By installing, copying, modifying, or using the Software, the Licensee confirms
+acceptance of this Agreement.

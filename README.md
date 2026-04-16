@@ -119,11 +119,21 @@ Most important values:
 
 Database file path is also configured there (`DATABASE_NAME`, defaulting to `konekta.db`).
 
+Packaged build note:
+
+- In a PyInstaller Windows build, the database is stored in `%LOCALAPPDATA%\\KONEKTA\\konekta.db`.
+- This avoids write-permission issues when the app is installed under protected folders (for example, Program Files).
+
 ## Data storage
 
 The app uses a local SQLite file:
 
 - `konekta.db`
+
+Default physical location:
+
+- Source/dev run: project folder
+- Packaged Windows build: `%LOCALAPPDATA%\\KONEKTA\\konekta.db`
 
 Main tables:
 
@@ -162,7 +172,16 @@ The game can still launch with missing assets, but visuals/audio will be incompl
 - Scores are not on leaderboard:
    - Finish the mini-game and press Enter on the end screen to submit score.
 - Need a clean test reset:
-   - Close the app, rename/delete `konekta.db`, then relaunch.
+   - Close the app, rename/delete the database file, then relaunch.
+   - Source/dev: `konekta.db` in the project folder.
+   - Packaged build: `%LOCALAPPDATA%\\KONEKTA\\konekta.db`.
+
+Operator support scripts (ship these beside the app/installer docs):
+
+- `open_konekta_data_folder.bat`
+   - Opens the packaged-build data folder directly.
+- `reset_konekta_data.bat`
+   - Deletes `%LOCALAPPDATA%\\KONEKTA\\konekta.db` after confirmation to reset local data.
 
 ## Credits
 
