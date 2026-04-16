@@ -81,6 +81,7 @@ class Database:
             max_score INTEGER NOT NULL,
             accuracy REAL NOT NULL,
             language TEXT,
+            difficulty_mode TEXT NOT NULL DEFAULT 'General',
             timestamp TEXT
         )''')
 
@@ -125,6 +126,7 @@ class Database:
         self._sync_profiles_cursor(c)
         self._ensure_question_difficulty_schema(c)
         self._ensure_global_mode_cursor(c)
+        self._ensure_leaderboard_mode_schema(c)
         
         conn.commit()
         conn.close()
@@ -289,6 +291,31 @@ class Database:
                 )
 
         self._ensure_global_mode_cursor(cursor)
+
+    def _ensure_leaderboard_mode_schema(self, cursor):
+        """migration path for mode-aware leaderboard filtering"""
+        if not self._has_column(cursor, 'leaderboard', 'difficulty_mode'):
+            cursor.execute(
+                """ALTER TABLE leaderboard
+                   ADD COLUMN difficulty_mode TEXT NOT NULL DEFAULT 'General'"""
+            )
+
+        fallback_mode = self._ensure_any_difficulty_mode_cursor(cursor)
+
+        cursor.execute(
+            """UPDATE leaderboard
+               SET difficulty_mode = ?
+               WHERE difficulty_mode IS NULL OR TRIM(difficulty_mode) = ''""",
+            (fallback_mode,)
+        )
+
+        cursor.execute(
+            """SELECT DISTINCT difficulty_mode
+               FROM leaderboard
+               WHERE difficulty_mode IS NOT NULL AND TRIM(difficulty_mode) <> ''"""
+        )
+        for row in cursor.fetchall():
+            self._ensure_difficulty_mode_cursor(cursor, row[0])
     
     def log_progress(self, student_id, module, score, gems_earned, time_spent):
         """save what the student did"""
@@ -477,13 +504,14 @@ class Database:
         max_score = max(1, int(max_score))
         score = max(0, min(int(score), max_score))
         accuracy = round((score / max_score) * 100.0, 2)
+        mode_name = self._ensure_global_mode_cursor(c)
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         c.execute(
             """INSERT INTO leaderboard
-               (student_id, module, score, max_score, accuracy, language, timestamp)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (student_id, module, score, max_score, accuracy, language, timestamp)
+               (student_id, module, score, max_score, accuracy, language, difficulty_mode, timestamp)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (student_id, module, score, max_score, accuracy, language, mode_name, timestamp)
         )
 
         conn.commit()
@@ -587,7 +615,7 @@ class Database:
         conn.commit()
         conn.close()
 
-    def get_student_profiles_with_metrics(self):
+    def get_student_profiles_with_metrics(self, difficulty_mode=None):
         """profile list with leaderboard-focused metrics for teacher kiosk"""
         conn = self.get_connection()
         c = conn.cursor()
@@ -595,21 +623,31 @@ class Database:
         self._sync_profiles_cursor(c)
         conn.commit()
 
+        params = []
+        join_clause = "LEFT JOIN leaderboard l ON l.student_id = p.student_id"
+        if difficulty_mode:
+            join_clause = (
+                "LEFT JOIN leaderboard l ON l.student_id = p.student_id "
+                "AND l.difficulty_mode = ?"
+            )
+            params.append(self._normalize_difficulty_mode(difficulty_mode))
+
         c.execute(
-            """SELECT p.student_id,
-                      COUNT(l.id) AS games_played,
-                      AVG(l.accuracy) AS avg_accuracy,
-                      MAX(l.accuracy) AS best_accuracy,
-                      SUM(l.score) AS total_points,
-                      MAX(l.timestamp) AS last_played,
-                      COALESCE(s.total_gems, 0) AS total_gems
-               FROM student_profiles p
-               LEFT JOIN leaderboard l ON l.student_id = p.student_id
-               LEFT JOIN student_stats s ON s.student_id = p.student_id
-               GROUP BY p.student_id, s.total_gems
-               ORDER BY games_played DESC,
-                        avg_accuracy DESC,
-                        p.student_id COLLATE NOCASE"""
+            f"""SELECT p.student_id,
+                       COUNT(l.id) AS games_played,
+                       AVG(l.accuracy) AS avg_accuracy,
+                       MAX(l.accuracy) AS best_accuracy,
+                       SUM(l.score) AS total_points,
+                       MAX(l.timestamp) AS last_played,
+                       COALESCE(s.total_gems, 0) AS total_gems
+                FROM student_profiles p
+                {join_clause}
+                LEFT JOIN student_stats s ON s.student_id = p.student_id
+                GROUP BY p.student_id, s.total_gems
+                ORDER BY games_played DESC,
+                         avg_accuracy DESC,
+                         p.student_id COLLATE NOCASE""",
+            params,
         )
         rows = c.fetchall()
         conn.close()
@@ -627,7 +665,7 @@ class Database:
             for row in rows
         ]
 
-    def get_student_module_performance(self, student_id):
+    def get_student_module_performance(self, student_id, difficulty_mode=None):
         """module-by-module stats for one student"""
         sid = str(student_id).strip()
         if not sid:
@@ -635,17 +673,24 @@ class Database:
 
         conn = self.get_connection()
         c = conn.cursor()
+
+        params = [sid]
+        where_clause = "WHERE student_id = ?"
+        if difficulty_mode:
+            where_clause += " AND difficulty_mode = ?"
+            params.append(self._normalize_difficulty_mode(difficulty_mode))
+
         c.execute(
-            """SELECT module,
-                      COUNT(*) AS plays,
-                      AVG(accuracy) AS avg_accuracy,
-                      MAX(accuracy) AS best_accuracy,
-                      SUM(score) AS total_points
-               FROM leaderboard
-               WHERE student_id = ?
-               GROUP BY module
-               ORDER BY avg_accuracy DESC, total_points DESC""",
-            (sid,)
+            f"""SELECT module,
+                       COUNT(*) AS plays,
+                       AVG(accuracy) AS avg_accuracy,
+                       MAX(accuracy) AS best_accuracy,
+                       SUM(score) AS total_points
+                FROM leaderboard
+                {where_clause}
+                GROUP BY module
+                ORDER BY avg_accuracy DESC, total_points DESC""",
+            params,
         )
         rows = c.fetchall()
         conn.close()
@@ -661,7 +706,7 @@ class Database:
             for row in rows
         ]
 
-    def get_student_recent_runs(self, student_id, limit=12):
+    def get_student_recent_runs(self, student_id, limit=12, difficulty_mode=None):
         """recent leaderboard attempts for one student"""
         sid = str(student_id).strip()
         if not sid:
@@ -669,13 +714,21 @@ class Database:
 
         conn = self.get_connection()
         c = conn.cursor()
+
+        params = [sid]
+        where_clause = "WHERE student_id = ?"
+        if difficulty_mode:
+            where_clause += " AND difficulty_mode = ?"
+            params.append(self._normalize_difficulty_mode(difficulty_mode))
+        params.append(int(limit))
+
         c.execute(
-            """SELECT module, score, max_score, accuracy, language, timestamp
-               FROM leaderboard
-               WHERE student_id = ?
-               ORDER BY timestamp DESC
-               LIMIT ?""",
-            (sid, int(limit))
+            f"""SELECT module, score, max_score, accuracy, language, timestamp
+                FROM leaderboard
+                {where_clause}
+                ORDER BY timestamp DESC
+                LIMIT ?""",
+            params,
         )
         rows = c.fetchall()
         conn.close()
@@ -692,17 +745,25 @@ class Database:
             for row in rows
         ]
 
-    def get_leaderboard(self, limit=20):
+    def get_leaderboard(self, limit=20, difficulty_mode=None):
         """top scores for the arcade board"""
         conn = self.get_connection()
         c = conn.cursor()
 
+        params = []
+        where_clause = ""
+        if difficulty_mode:
+            where_clause = "WHERE difficulty_mode = ?"
+            params.append(self._normalize_difficulty_mode(difficulty_mode))
+        params.append(int(limit))
+
         c.execute(
-            """SELECT student_id, module, score, max_score, accuracy, language, timestamp
-               FROM leaderboard
-               ORDER BY accuracy DESC, score DESC, timestamp ASC
-               LIMIT ?""",
-            (int(limit),)
+            f"""SELECT student_id, module, score, max_score, accuracy, language, timestamp
+                FROM leaderboard
+                {where_clause}
+                ORDER BY accuracy DESC, score DESC, timestamp ASC
+                LIMIT ?""",
+            params,
         )
         rows = c.fetchall()
         conn.close()
@@ -720,44 +781,67 @@ class Database:
             for r in rows
         ]
 
-    def get_teacher_metrics(self):
+    def get_teacher_metrics(self, difficulty_mode=None):
         """teacher analytics from real student runs"""
         conn = self.get_connection()
         c = conn.cursor()
 
+        where_sql = ""
+        params = []
+        if difficulty_mode:
+            where_sql = "WHERE difficulty_mode = ?"
+            params.append(self._normalize_difficulty_mode(difficulty_mode))
+
         c.execute("SELECT COUNT(*) FROM sessions")
         total_sessions = c.fetchone()[0]
 
-        c.execute("SELECT COUNT(DISTINCT student_id) FROM leaderboard")
+        c.execute(
+            f"SELECT COUNT(DISTINCT student_id) FROM leaderboard {where_sql}",
+            params,
+        )
         active_students = c.fetchone()[0]
 
-        c.execute("SELECT COUNT(*) FROM leaderboard")
+        c.execute(
+            f"SELECT COUNT(*) FROM leaderboard {where_sql}",
+            params,
+        )
         total_logged_games = c.fetchone()[0]
 
-        c.execute("SELECT AVG(accuracy) FROM leaderboard")
+        c.execute(
+            f"SELECT AVG(accuracy) FROM leaderboard {where_sql}",
+            params,
+        )
         avg_accuracy = c.fetchone()[0] or 0.0
 
+        module_where = where_sql
+        module_params = list(params)
         c.execute(
-            """SELECT module,
-                      COUNT(*) AS plays,
-                      COUNT(DISTINCT student_id) AS unique_students,
-                      AVG(accuracy) AS avg_accuracy,
-                      MAX(accuracy) AS best_accuracy
-               FROM leaderboard
-               GROUP BY module
-               ORDER BY avg_accuracy DESC"""
+            f"""SELECT module,
+                       COUNT(*) AS plays,
+                       COUNT(DISTINCT student_id) AS unique_students,
+                       AVG(accuracy) AS avg_accuracy,
+                       MAX(accuracy) AS best_accuracy
+                FROM leaderboard
+                {module_where}
+                GROUP BY module
+                ORDER BY avg_accuracy DESC""",
+            module_params,
         )
         module_rows = c.fetchall()
 
+        student_where = where_sql
+        student_params = list(params)
         c.execute(
-            """SELECT student_id,
-                      COUNT(*) AS games_played,
-                      AVG(accuracy) AS avg_accuracy,
-                      MAX(accuracy) AS best_accuracy,
-                      SUM(score) AS total_points
-               FROM leaderboard
-               GROUP BY student_id
-               ORDER BY avg_accuracy DESC, total_points DESC, games_played DESC"""
+            f"""SELECT student_id,
+                       COUNT(*) AS games_played,
+                       AVG(accuracy) AS avg_accuracy,
+                       MAX(accuracy) AS best_accuracy,
+                       SUM(score) AS total_points
+                FROM leaderboard
+                {student_where}
+                GROUP BY student_id
+                ORDER BY avg_accuracy DESC, total_points DESC, games_played DESC""",
+            student_params,
         )
         student_rows = c.fetchall()
 
@@ -1098,7 +1182,7 @@ class Database:
         conn.commit()
         conn.close()
     
-    def generate_report(self):
+    def generate_report(self, difficulty_mode=None):
         """make the report for the teacher"""
         # report output is intentionally denormalized for dashboard convenience.
         conn = self.get_connection()
@@ -1118,14 +1202,14 @@ class Database:
         
         conn.close()
         
-        analytics = self.get_teacher_metrics()
+        analytics = self.get_teacher_metrics(difficulty_mode=difficulty_mode)
         report = {
             'students': students,
             'total_sessions': total_sessions,
             'avg_time_per_module': avg_time,
             'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'analytics': analytics,
-            'leaderboard': self.get_leaderboard(limit=20),
+            'leaderboard': self.get_leaderboard(limit=20, difficulty_mode=difficulty_mode),
             'custom_question_counts': self.get_custom_question_counts(),
         }
         

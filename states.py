@@ -247,6 +247,40 @@ class State:
                 return 'bisaya'
         return None
 
+    def draw_profile_mode_badge(self, screen, mode_name, accent_color=config.ORANGE,
+                                top=14, right_margin=20):
+        """draw a styled top-right badge showing active profile mode."""
+        if not hasattr(self, 'small_font') or not mode_name:
+            return
+
+        mode = str(mode_name)
+        if len(mode) > 26:
+            mode = mode[:23] + '...'
+
+        label_text = 'ACTIVE PROFILE'
+        label_surface = self.small_font.render(label_text, True, config.WHITE)
+        value_surface = self.small_font.render(mode, True, config.WHITE)
+
+        width = max(260, label_surface.get_width(), value_surface.get_width()) + 34
+        height = 52
+        rect = pygame.Rect(
+            config.SCREEN_WIDTH - width - right_margin,
+            top,
+            width,
+            height,
+        )
+
+        self.draw_retro_box(screen, rect, (20, 28, 44), accent_color, border_width=3)
+
+        # Accent stripe makes the profile widget pop without stealing attention.
+        stripe = pygame.Rect(rect.x + 8, rect.y + 6, 8, rect.height - 12)
+        pygame.draw.rect(screen, accent_color, stripe)
+
+        label_rect = label_surface.get_rect(topleft=(rect.x + 24, rect.y + 7))
+        value_rect = value_surface.get_rect(topleft=(rect.x + 24, rect.y + 27))
+        screen.blit(label_surface, label_rect)
+        screen.blit(value_surface, value_rect)
+
 
 class TitleScreenState(State):
     """cinematic blocky title screen with retro pixel atmosphere."""
@@ -989,6 +1023,10 @@ class TeacherDashboardState(State):
         self.forge_recipe_prev_rect = None
         self.forge_recipe_next_rect = None
         self.forge_save_rect = None
+        self.global_mode_prev_rect = None
+        self.global_mode_next_rect = None
+        self.global_mode_create_rect = None
+        self.global_mode_rename_rect = None
         self.leaderboard_profile_rects = []
         self.leaderboard_btn_create = None
         self.leaderboard_btn_rename = None
@@ -1047,7 +1085,7 @@ class TeacherDashboardState(State):
 
         self.forge_mode_index = (self.forge_mode_index + direction) % len(self.difficulty_modes)
         self.game.db.set_active_profile_mode(self._current_difficulty_mode())
-        self._refresh_recent_questions()
+        self.refresh_data()
 
     def _cycle_recipe(self, direction):
         self.forge_recipe_index = (self.forge_recipe_index + direction) % len(RECIPE_KEYS)
@@ -1106,16 +1144,27 @@ class TeacherDashboardState(State):
         self.recent_questions = rows[:5]
 
     def refresh_data(self):
-        self.report = self.game.db.generate_report()
-        self.analytics = self.report.get('analytics', self.game.db.get_teacher_metrics())
-        self.leaderboard = self.report.get('leaderboard', self.game.db.get_leaderboard(limit=20))
-        self.question_counts = self.game.db.get_custom_question_counts(include_difficulty=True)
         self._refresh_difficulty_slot()
-        self._refresh_recent_questions()
-        self._refresh_profile_tracking()
+        active_mode = self._current_difficulty_mode()
 
-    def _refresh_profile_tracking(self):
-        self.profile_rows = self.game.db.get_student_profiles_with_metrics()
+        self.report = self.game.db.generate_report(difficulty_mode=active_mode)
+        self.analytics = self.report.get(
+            'analytics',
+            self.game.db.get_teacher_metrics(difficulty_mode=active_mode),
+        )
+        self.leaderboard = self.report.get(
+            'leaderboard',
+            self.game.db.get_leaderboard(limit=20, difficulty_mode=active_mode),
+        )
+        self.question_counts = self.game.db.get_custom_question_counts(include_difficulty=True)
+        self._refresh_recent_questions()
+        self._refresh_profile_tracking(active_mode=active_mode)
+
+    def _refresh_profile_tracking(self, active_mode=None):
+        mode = active_mode or self._current_difficulty_mode()
+        self.profile_rows = self.game.db.get_student_profiles_with_metrics(
+            difficulty_mode=mode,
+        )
         if not self.profile_rows:
             self.selected_profile_idx = 0
             self.selected_profile_modules = []
@@ -1123,21 +1172,29 @@ class TeacherDashboardState(State):
             return
 
         self.selected_profile_idx = max(0, min(self.selected_profile_idx, len(self.profile_rows) - 1))
-        self._refresh_selected_profile_details()
+        self._refresh_selected_profile_details(active_mode=mode)
 
     def _selected_profile_id(self):
         if not self.profile_rows:
             return None
         return self.profile_rows[self.selected_profile_idx]['student_id']
 
-    def _refresh_selected_profile_details(self):
+    def _refresh_selected_profile_details(self, active_mode=None):
         sid = self._selected_profile_id()
         if not sid:
             self.selected_profile_modules = []
             self.selected_profile_runs = []
             return
-        self.selected_profile_modules = self.game.db.get_student_module_performance(sid)
-        self.selected_profile_runs = self.game.db.get_student_recent_runs(sid, limit=12)
+        mode = active_mode or self._current_difficulty_mode()
+        self.selected_profile_modules = self.game.db.get_student_module_performance(
+            sid,
+            difficulty_mode=mode,
+        )
+        self.selected_profile_runs = self.game.db.get_student_recent_runs(
+            sid,
+            limit=12,
+            difficulty_mode=mode,
+        )
 
     def _start_account_editor(self, mode):
         if mode == 'create':
@@ -1247,8 +1304,29 @@ class TeacherDashboardState(State):
         self.status_color = color
         self.status_until = time.time() + 2.5
 
+    def _handle_global_mode_click(self, pos):
+        if self.forge_mode_editor or self.account_editor:
+            return False
+
+        if self.global_mode_prev_rect and self.global_mode_prev_rect.collidepoint(pos):
+            self._cycle_difficulty_mode(-1)
+            return True
+        if self.global_mode_next_rect and self.global_mode_next_rect.collidepoint(pos):
+            self._cycle_difficulty_mode(1)
+            return True
+        if self.global_mode_create_rect and self.global_mode_create_rect.collidepoint(pos):
+            self._start_mode_editor('create')
+            return True
+        if self.global_mode_rename_rect and self.global_mode_rename_rect.collidepoint(pos):
+            self._start_mode_editor('rename')
+            return True
+        return False
+
     def _handle_mouse_click(self, pos):
         """handle clickable UI in teacher mode"""
+        if self._handle_global_mode_click(pos):
+            return
+
         for tab_name, rect in self.tab_rects.items():
             if rect and rect.collidepoint(pos):
                 self.tab = tab_name
@@ -1324,7 +1402,7 @@ class TeacherDashboardState(State):
     def enter(self):
         self.authenticated = False
         self.password_input = ''
-        self.tab = 'overview'
+        self.tab = 'leaderboard'
         self.account_editor = None
         self.forge_mode_editor = None
         self.refresh_data()
@@ -1334,6 +1412,7 @@ class TeacherDashboardState(State):
         if event.key == pygame.K_RETURN:
             if self.password_input == config.TEACHER_PASSWORD:
                 self.authenticated = True
+                self.tab = 'leaderboard'
                 self.refresh_data()
             else:
                 self.password_input = ''
@@ -1482,6 +1561,23 @@ class TeacherDashboardState(State):
             self._set_status('Dashboard refreshed.', config.YELLOW)
             return
 
+        ctrl_held = bool(pygame.key.get_mods() & pygame.KMOD_CTRL)
+
+        # Profile mode controls are global so changing profile is always easy.
+        if not self.forge_mode_editor and not self.account_editor:
+            if ctrl_held and event.key == pygame.K_LEFT:
+                self._cycle_difficulty_mode(-1)
+                return
+            if ctrl_held and event.key == pygame.K_RIGHT:
+                self._cycle_difficulty_mode(1)
+                return
+            if ctrl_held and event.key == pygame.K_n:
+                self._start_mode_editor('create')
+                return
+            if ctrl_held and event.key == pygame.K_r:
+                self._start_mode_editor('rename')
+                return
+
         # function key shortcuts stay safe even while typing numbers in forms.
         if event.key == pygame.K_F1:
             self.tab = 'overview'
@@ -1521,6 +1617,48 @@ class TeacherDashboardState(State):
         txt = self.small_font.render(text, True, config.WHITE)
         screen.blit(txt, txt.get_rect(center=rect.center))
         self.tab_rects[tab_name] = rect
+
+    def _draw_global_mode_controls(self, screen):
+        self.global_mode_prev_rect = None
+        self.global_mode_next_rect = None
+        self.global_mode_create_rect = None
+        self.global_mode_rename_rect = None
+
+        panel = pygame.Rect(config.SCREEN_WIDTH - 560, 14, 520, 52)
+        self.draw_retro_box(screen, panel, (22, 34, 52), config.YELLOW, border_width=3)
+
+        self.global_mode_prev_rect = pygame.Rect(panel.x + 10, panel.y + 10, 32, 32)
+        self.global_mode_next_rect = pygame.Rect(panel.x + 46, panel.y + 10, 32, 32)
+        self.global_mode_create_rect = pygame.Rect(panel.right - 192, panel.y + 10, 84, 32)
+        self.global_mode_rename_rect = pygame.Rect(panel.right - 100, panel.y + 10, 90, 32)
+        label_rect = pygame.Rect(
+            panel.x + 86,
+            panel.y + 10,
+            panel.width - 86 - 204,
+            32,
+        )
+
+        self.draw_retro_box(screen, self.global_mode_prev_rect, config.GREEN, config.YELLOW, border_width=2, shadow=False)
+        self.draw_retro_box(screen, self.global_mode_next_rect, config.GREEN, config.YELLOW, border_width=2, shadow=False)
+        self.draw_retro_box(screen, label_rect, (42, 72, 44), config.YELLOW, border_width=2, shadow=False)
+        self.draw_retro_box(screen, self.global_mode_create_rect, config.BLUE, config.YELLOW, border_width=2, shadow=False)
+        self.draw_retro_box(screen, self.global_mode_rename_rect, config.PURPLE, config.YELLOW, border_width=2, shadow=False)
+
+        mode_label = self._current_difficulty_mode()
+        if len(mode_label) > 18:
+            mode_label = mode_label[:15] + '...'
+
+        left = self.small_font.render('<', True, config.WHITE)
+        right = self.small_font.render('>', True, config.WHITE)
+        label = self.small_font.render(f'Active Profile: {mode_label}', True, config.WHITE)
+        create = self.small_font.render('NEW', True, config.WHITE)
+        rename = self.small_font.render('RENAME', True, config.WHITE)
+
+        screen.blit(left, left.get_rect(center=self.global_mode_prev_rect.center))
+        screen.blit(right, right.get_rect(center=self.global_mode_next_rect.center))
+        screen.blit(label, label.get_rect(center=label_rect.center))
+        screen.blit(create, create.get_rect(center=self.global_mode_create_rect.center))
+        screen.blit(rename, rename.get_rect(center=self.global_mode_rename_rect.center))
 
     def _draw_overview(self, screen):
         cards = [
@@ -1584,14 +1722,22 @@ class TeacherDashboardState(State):
         title = self.font.render('STUDENT TRACKER + LEADERBOARD', True, config.YELLOW)
         screen.blit(title, (left.x + 14, left.y + 14))
 
+        active_mode = self._current_difficulty_mode()
+        mode_line = self.small_font.render(
+            f'Filtered to Active Profile Mode: {active_mode}',
+            True,
+            config.LIGHT_BLUE,
+        )
+        screen.blit(mode_line, (left.x + 16, left.y + 42))
+
         header = self.small_font.render('PROFILE                 GAMES   AVG%   BEST%   GEMS', True, config.LIGHT_BLUE)
-        screen.blit(header, (left.x + 16, left.y + 56))
+        screen.blit(header, (left.x + 16, left.y + 72))
 
         visible = 12
         if self.profile_rows:
             start_idx = max(0, min(self.selected_profile_idx - visible // 2, max(0, len(self.profile_rows) - visible)))
             end_idx = min(len(self.profile_rows), start_idx + visible)
-            y = left.y + 88
+            y = left.y + 104
             for idx in range(start_idx, end_idx):
                 row = self.profile_rows[idx]
                 active = idx == self.selected_profile_idx
@@ -1838,7 +1984,7 @@ class TeacherDashboardState(State):
             fields_y = left.y + 264
 
         controls = self.small_font.render(
-            'Click fields to edit | F6 save | [ ] switch profile | F7/F8 mode tools',
+            'Click fields to edit | F6 save | [ ] switch profile | Ctrl+Left/Right + Ctrl+N/Ctrl+R mode tools',
             True,
             config.LIGHT_GRAY,
         )
@@ -1964,6 +2110,8 @@ class TeacherDashboardState(State):
             screen.blit(shadow, tr.move(2, 2))
             screen.blit(title, tr)
 
+            self._draw_global_mode_controls(screen)
+
             tab_y = 72
             self._draw_tab_button(screen, pygame.Rect(40, tab_y, 190, 38), '1 OVERVIEW', self.tab == 'overview', config.BLUE, 'overview')
             self._draw_tab_button(screen, pygame.Rect(245, tab_y, 220, 38), '2 LEADERBOARD', self.tab == 'leaderboard', config.PURPLE, 'leaderboard')
@@ -1977,7 +2125,7 @@ class TeacherDashboardState(State):
                 self._draw_forge(screen)
 
             hint = self.small_font.render(
-                'F1/F2/F3 Tabs  |  F5 Refresh  |  Forge: [ ] Profile + F7/F8 Mode Tools + F9/F10 Recipe  |  ESC Return To Map',
+                'F1/F2/F3 Tabs  |  F5 Refresh  |  Profile: Ctrl+Left/Right  Ctrl+N/Ctrl+R  |  Forge: [ ] + F9/F10 Recipe  |  ESC Return',
                 True,
                 config.LIGHT_GRAY,
             )
@@ -2171,6 +2319,12 @@ class BarangayCaptainState(State):
         if not self.game_started:
             self.draw_language_selection(screen, config.BLUE)
             return
+
+        self.draw_profile_mode_badge(
+            screen,
+            self.active_difficulty_mode,
+            accent_color=config.BLUE,
+        )
 
         if not self.questions:
             self._draw_no_questions(screen)
@@ -2630,6 +2784,12 @@ class RecipeGameState(State):
         if not self.game_started:
             self.draw_language_selection(screen, config.ORANGE)
             return
+
+        self.draw_profile_mode_badge(
+            screen,
+            self.active_difficulty_mode,
+            accent_color=config.ORANGE,
+        )
 
         if not self.custom_questions:
             self._draw_no_questions(screen)
@@ -3105,6 +3265,12 @@ class SynonymAntonymState(State):
         if not self.game_started:
             self.draw_language_selection(screen, config.PURPLE)
             return
+
+        self.draw_profile_mode_badge(
+            screen,
+            self.active_difficulty_mode,
+            accent_color=config.PURPLE,
+        )
 
         if not self.questions:
             self._draw_no_questions(screen)
