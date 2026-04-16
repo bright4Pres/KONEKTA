@@ -92,9 +92,21 @@ def _pick_image_path(*candidate_names):
     return os.path.join(IMAGE_PATH, candidate_names[0])
 
 
+def _pick_audio_path(*candidate_names):
+    """Return first existing audio path from candidates; fallback to first name."""
+    for filename in candidate_names:
+        candidate = os.path.join(AUDIO_PATH, filename)
+        if os.path.exists(candidate):
+            return candidate
+    return os.path.join(AUDIO_PATH, candidate_names[0])
+
+
 LOGO_IMAGE_PATH = _pick_image_path('konekta_logo.png')
 TITLE_SCREEN_IMAGE_PATH = _pick_image_path('konekta_title_screen.png', 'konekta_title_page.png')
 WINDOW_ICON_PATH = _pick_image_path('konekta_logo.ico', 'konekta_logo.png')
+BG_MUSIC_PATH = _pick_audio_path('bgmusic.mp3')
+GAME_MUSIC_PATH = _pick_audio_path('gamemusic.mp3')
+MUSIC_VOLUME = 0.50
 
 def resolve_app_data_path():
     """Choose a writable folder for persistent data."""

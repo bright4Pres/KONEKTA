@@ -31,7 +31,13 @@ class Game:
     def __init__(self):
         # start pygame
         pygame.init()
-        pygame.mixer.init()
+        self.audio_enabled = False
+        try:
+            pygame.mixer.init()
+            self.audio_enabled = True
+        except pygame.error:
+            # run silently without audio if mixer init fails on target machine
+            self.audio_enabled = False
         
         # screen stuff
         if config.KIOSK_MODE:
@@ -82,8 +88,10 @@ class Game:
             'synonym_antonym': SynonymAntonymState(self)
         }
         
+        self.current_music_track = None
         self.current_state = self.states['title']
         self.current_state.enter()
+        self._update_music_for_state('title')
         
         # track how long they play
         self.session_id = self.db.start_session(self.current_student_id)
@@ -91,6 +99,41 @@ class Game:
         
         # keys being held rn
         self.keys_pressed = set()
+
+    def _music_track_for_state(self, state_name):
+        """Mini-games use game music; menu/title/teacher use background music."""
+        if state_name in {'barangay', 'recipe', 'synonym_antonym'}:
+            return config.GAME_MUSIC_PATH
+        return config.BG_MUSIC_PATH
+
+    def _play_looping_music(self, track_path):
+        """Load a music file and loop it forever, avoiding redundant reloads."""
+        if not self.audio_enabled or not track_path:
+            return
+
+        normalized = os.path.normcase(os.path.normpath(track_path))
+        if self.current_music_track == normalized:
+            if not pygame.mixer.music.get_busy():
+                try:
+                    pygame.mixer.music.play(-1)
+                except pygame.error:
+                    pass
+            return
+
+        if not os.path.exists(track_path):
+            return
+
+        try:
+            pygame.mixer.music.load(track_path)
+            pygame.mixer.music.set_volume(config.MUSIC_VOLUME)
+            pygame.mixer.music.play(-1)
+            self.current_music_track = normalized
+        except pygame.error:
+            pass
+
+    def _update_music_for_state(self, state_name):
+        """Switch track whenever game context changes."""
+        self._play_looping_music(self._music_track_for_state(state_name))
     
     def handle_events(self):
         """handle events"""
@@ -149,6 +192,7 @@ class Game:
             self.current_state.next_state = None
             self.current_state = self.states[new_state_name]
             self.current_state.enter()
+            self._update_music_for_state(new_state_name)
 
     def set_current_student(self, student_id):
         """switch active profile and start a fresh session for that profile"""
@@ -187,6 +231,13 @@ class Game:
         # end the session and save it (even if user rage-quits with esc lol)
         session_duration = time.time() - self.session_start
         self.db.end_session(self.session_id, session_duration)
+
+        if self.audio_enabled:
+            try:
+                pygame.mixer.music.stop()
+                pygame.mixer.quit()
+            except pygame.error:
+                pass
         
         pygame.quit()
         sys.exit()

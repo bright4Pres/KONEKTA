@@ -1,115 +1,269 @@
 KONEKTA
-PROPRIETARY EDUCATIONAL LICENSE AGREEMENT
-Version 1.0
-Effective Date: April 7, 2026
- 
-This Proprietary Educational License Agreement ("Agreement") governs the use of the KONEKTA software package, including source code, compiled builds, documentation, and all related project files (collectively, the "Software"). By installing, copying, modifying, or using the Software in any manner, the Licensee agrees to be bound by the terms of this Agreement.
+END USER LICENSE AGREEMENT (EULA)
+Version 2.0
 
-1) PARTIES
-Licensor (Author and Owner):  Bright R. Bastasa
-Contact for Permission Requests:  brightbastasa@gmail.com
+Copyright (c) 2026 Bright R. Bastasa. All rights reserved.
 
-Institutional Affiliation:  Philippine Science High School – Zamboanga Peninsula Region Campus (PSHS-ZRC), under the Department of Science and Technology (DOST).
+IMPORTANT: READ THIS AGREEMENT CAREFULLY BEFORE INSTALLING OR USING THIS
+SOFTWARE. BY INSTALLING, COPYING, OR OTHERWISE USING KONEKTA, YOU AGREE TO
+BE BOUND BY THE TERMS OF THIS AGREEMENT. IF YOU DO NOT AGREE, DO NOT
+INSTALL OR USE THE SOFTWARE.
 
-Institutional Rights Reservation:  Any institutional rights of PSHS-ZRC and/or DOST that may apply under signed agreements, official school policy, or applicable law are expressly reserved and are not waived by this Agreement.
+-------------------------------------------------------------------------------
+1. DEFINITIONS
+-------------------------------------------------------------------------------
 
-2) COPYRIGHT OWNERSHIP
-Copyright © 2026 Bright R. Bastasa. All rights reserved.
+"Software"    means the KONEKTA application, including all source code,
+              compiled builds, assets, documentation, and related project
+              files distributed by the Licensor.
 
-The Software is proprietary. Title, ownership, and all intellectual property rights in and to the Software remain exclusively with the Licensor. This Agreement grants a limited license to use the Software and does not transfer or assign any ownership interest.
+"Licensor"    means Bright R. Bastasa, the sole author and copyright owner
+              of the Software. Permission requests: brightbastasa@gmail.com
 
-Notwithstanding the foregoing, if any written assignment, signed undertaking, or binding institutional policy requires shared ownership, assignment, or institutional licensing in favor of PSHS-ZRC and/or DOST, such requirement shall control to the extent required by law or policy.
+"Licensee"    means the individual or institution that installs, copies,
+              accesses, or otherwise uses the Software under this Agreement.
 
-3) LICENSE GRANT
-Subject to full compliance with this Agreement, the Licensor grants the Licensee a non-exclusive, non-transferable, royalty-free, revocable license to:
-a)  install and run the Software on no more than twenty (20) school-owned or school-managed devices located on SAES premises;
-b)  use the Software strictly for internal educational and instructional activities at SAES; and
-c)  make up to three (3) internal backup copies solely for disaster recovery purposes, each retaining all original copyright and attribution notices.
+"Authorized   means devices owned or managed by the Licensee and used
+Devices"      exclusively for the Licensee's internal educational activities.
 
-This license is limited exclusively to internal use at San Alfonso Elementary School. No right is granted beyond what is expressly stated in this Section.
+"Internal     means activities conducted within the Licensee's institution
+Use"          for non-commercial instructional, administrative, or
+              educational purposes only.
 
-4) INTERNAL MODIFICATION PERMISSION
-The Licensee is permitted to modify the source code solely for internal school use, including maintenance, localization, accessibility improvements, and classroom delivery adaptations.
+-------------------------------------------------------------------------------
+2. COPYRIGHT OWNERSHIP
+-------------------------------------------------------------------------------
 
-Any modified version must:
-a)  retain all original copyright, attribution, and authorship notices in unaltered form;
-b)  remain fully subject to this Agreement; and
-c)  not be distributed, shared, or made accessible outside SAES without prior written permission from the Licensor.
+The Software is proprietary. All title, ownership, and intellectual property
+rights in and to the Software remain exclusively with the Licensor. This
+Agreement grants a limited license to use the Software and does not transfer
+or assign any ownership interest whatsoever.
 
-Any modification that removes, replaces, or substantially obscures the Software's core functionality for the purpose of circumventing attribution obligations shall be deemed a material breach of this Agreement.
+Institutional rights of Philippine Science High School - Zamboanga Peninsula
+Region Campus (PSHS-ZRC) and/or the Department of Science and Technology
+(DOST) that may apply under signed agreements, official policy, or applicable
+law are expressly reserved and are not waived by this Agreement.
 
-5) RESTRICTIONS
-Without prior written permission from the Licensor (see Section 17 for notice procedures), the Licensee and any third party receiving the Software through the Licensee must not:
-a)  distribute, publish, upload, transmit, or share the Software or source code, in whole or in part, to any external party or platform;
-b)  post the Software in any public or private repository, cloud storage, or other medium accessible to persons not authorized under this Agreement;
-c)  sell, sublicense, rent, lease, or otherwise commercially exploit the Software or any derivative thereof;
-d)  remove, alter, obscure, or override any copyright, attribution, or authorship notices embedded in or accompanying the Software;
-e)  represent, claim, or imply that the Software, in whole or in part, is their own original work;
-f)  transfer, assign, or sublicense this Agreement or any rights hereunder to another school, organization, or individual;
-g)  decompile, disassemble, reverse engineer, or otherwise attempt to derive the source code from any compiled build or binary of the Software; or
-h)  use the Software in any manner that violates applicable Philippine law, DOST policy, or Department of Education regulations.
+-------------------------------------------------------------------------------
+3. LICENSE GRANT
+-------------------------------------------------------------------------------
 
-6) ATTRIBUTION REQUIREMENT
-Any approved copy, internal fork, or derivative work used by the Licensee must include the following attribution in all project documentation and, where technically practicable, in an "About" screen, credits section, or equivalent user-visible location:
+Subject to full compliance with this Agreement, the Licensor grants the
+Licensee a non-exclusive, non-transferable, royalty-free, revocable license
+to:
 
-"KONEKTA was originally developed by student proponents from Philippine Science High School – Zamboanga Peninsula Region Campus (PSHS-ZRC), under the Department of Science and Technology (DOST), and authored by Bright R. Bastasa."
+  (a) install and run the Software on Authorized Devices solely for
+      Internal Use;
+
+  (b) make up to three (3) backup copies for disaster recovery purposes,
+      each retaining all original copyright and attribution notices; and
+
+  (c) modify the source code solely for Internal Use as described in
+      Section 4.
+
+No rights are granted beyond what is expressly stated in this Section.
+
+-------------------------------------------------------------------------------
+4. INTERNAL MODIFICATION
+-------------------------------------------------------------------------------
+
+The Licensee may modify the source code solely for Internal Use, including
+maintenance, localization, accessibility improvements, and instructional
+adaptations, provided that any modified version:
+
+  (a) retains all original copyright, attribution, and authorship notices
+      in unaltered form;
+
+  (b) remains fully subject to all terms of this Agreement; and
+
+  (c) is not distributed, shared, or made accessible outside the Licensee's
+      institution without prior written permission from the Licensor.
+
+Any modification that removes or substantially obscures the Software's core
+functionality for the purpose of circumventing attribution obligations
+constitutes a material breach of this Agreement.
+
+-------------------------------------------------------------------------------
+5. RESTRICTIONS
+-------------------------------------------------------------------------------
+
+Without prior written permission from the Licensor, the Licensee must not:
+
+  (a) distribute, publish, upload, transmit, or share the Software or source
+      code, in whole or in part, to any external party or platform;
+
+  (b) post the Software in any public or private repository, cloud storage,
+      or other medium accessible to unauthorized persons;
+
+  (c) sell, sublicense, rent, lease, or otherwise commercially exploit the
+      Software or any derivative thereof;
+
+  (d) remove, alter, obscure, or override any copyright, attribution, or
+      authorship notices embedded in or accompanying the Software;
+
+  (e) represent, claim, or imply that the Software, in whole or in part,
+      is their own original work;
+
+  (f) transfer, assign, or sublicense this Agreement or any rights hereunder
+      to any other party;
+
+  (g) decompile, disassemble, reverse engineer, or attempt to derive source
+      code from any compiled build or binary; or
+
+  (h) use the Software in any manner that violates applicable Philippine law,
+      DOST policy, or Department of Education regulations.
+
+-------------------------------------------------------------------------------
+6. ATTRIBUTION REQUIREMENT
+-------------------------------------------------------------------------------
+
+Any approved copy, internal fork, or derivative work must include the
+following attribution in all project documentation and, where technically
+practicable, in an "About" screen, credits section, or equivalent
+user-visible location:
+
+  "KONEKTA was originally developed by student proponents from Philippine
+  Science High School - Zamboanga Peninsula Region Campus (PSHS-ZRC), under
+  the Department of Science and Technology (DOST), and authored by
+  Bright R. Bastasa."
 
 This attribution requirement survives termination of this Agreement.
 
-7) THIRD-PARTY COMPONENTS
-The Software may include third-party components such as assets, fonts, audio files, libraries, and tools that are governed by separate licenses. This Agreement does not replace or override applicable third-party license terms. The Licensee is solely responsible for ensuring compliance with all third-party licenses applicable to any components used or modified.
+-------------------------------------------------------------------------------
+7. THIRD-PARTY COMPONENTS
+-------------------------------------------------------------------------------
 
-8) DATA PRIVACY
-If the Software collects, processes, or stores personal data of students, teachers, or staff, both Parties agree to comply with the Data Privacy Act of 2012 (Republic Act No. 10173) and its Implementing Rules and Regulations, including registration with the National Privacy Commission as applicable.
+The Software may include third-party components (assets, fonts, audio,
+libraries, or tools) governed by separate licenses. This Agreement does not
+replace or override applicable third-party license terms. The Licensee is
+solely responsible for ensuring compliance with all applicable third-party
+licenses.
 
-The Licensor makes no warranty that the Software, as delivered, is fully compliant with all data privacy obligations applicable to the Licensee's specific deployment context. The Licensee assumes full responsibility for any data privacy obligations arising from its use of the Software, including the processing of personal data of minors enrolled at SAES.
+-------------------------------------------------------------------------------
+8. DATA PRIVACY
+-------------------------------------------------------------------------------
 
-9) SUPPORT AND MAINTENANCE
-No ongoing maintenance, updates, technical support, or bug fixes are guaranteed under this Agreement unless separately agreed in a signed written instrument by both Parties.
+If the Software collects, processes, or stores personal data, both parties
+agree to comply with the Data Privacy Act of 2012 (Republic Act No. 10173)
+and its Implementing Rules and Regulations.
 
-10) WARRANTY DISCLAIMER
-THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, ACCURACY, TITLE, AND NON-INFRINGEMENT. THE LICENSOR DOES NOT WARRANT THAT THE SOFTWARE WILL BE ERROR-FREE, UNINTERRUPTED, OR FREE OF SECURITY VULNERABILITIES.
+The Licensor makes no warranty that the Software is fully compliant with all
+data privacy obligations applicable to the Licensee's specific deployment
+context. The Licensee assumes full responsibility for any data privacy
+obligations arising from its use of the Software, including the processing
+of personal data of minors.
 
-11) LIMITATION OF LIABILITY
-TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE PHILIPPINE LAW, THE LICENSOR SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOSS OF DATA, LOSS OF USE, LOSS OF REVENUE, OR OPERATIONAL INTERRUPTION, ARISING FROM OR RELATED TO THE USE OF OR INABILITY TO USE THE SOFTWARE, EVEN IF THE LICENSOR HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+-------------------------------------------------------------------------------
+9. NO SUPPORT OR MAINTENANCE
+-------------------------------------------------------------------------------
 
-12) TERM AND TERMINATION
-This Agreement takes effect on the Effective Date and remains in force until terminated.
+No maintenance, updates, technical support, or bug fixes are guaranteed under
+this Agreement unless separately agreed upon in a signed written instrument
+by both parties.
 
-The Licensor may terminate this Agreement immediately upon written notice if the Licensee commits a material breach, including but not limited to:
-a)  distributing, publishing, or sharing the Software or any portion thereof to any external party without prior written permission;
-b)  removing, altering, or obscuring any copyright, attribution, or authorship notice;
-c)  representing or claiming the Software as the Licensee's own original work; or
-d)  transferring any rights under this Agreement to a third party without prior written permission.
+-------------------------------------------------------------------------------
+10. DISCLAIMER OF WARRANTIES
+-------------------------------------------------------------------------------
 
-Upon termination for any reason, the Licensee must immediately: (i) cease all use of the Software; (ii) destroy or delete all installed copies, backup copies, and modified versions; and (iii) provide written certification of such destruction to the Licensor within fourteen (14) days of the termination notice.
+THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, ACCURACY, TITLE, AND
+NON-INFRINGEMENT. THE LICENSOR DOES NOT WARRANT THAT THE SOFTWARE WILL BE
+ERROR-FREE, UNINTERRUPTED, OR FREE OF SECURITY VULNERABILITIES.
 
-Sections 2, 5, 6, 8, 10, 11, 13, 15, and 16 shall survive termination of this Agreement.
+-------------------------------------------------------------------------------
+11. LIMITATION OF LIABILITY
+-------------------------------------------------------------------------------
 
-13) AUDIT AND COMPLIANCE
-Upon written request from the Licensor, made no more than once per calendar year, the Licensee agrees to provide a written compliance statement confirming that the Software is being used in accordance with this Agreement, including the number of installed copies and devices. The Licensee shall respond within thirty (30) days of such request.
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE PHILIPPINE LAW, THE LICENSOR
+SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL,
+EXEMPLARY, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOSS OF DATA,
+LOSS OF USE, LOSS OF REVENUE, OR OPERATIONAL INTERRUPTION, ARISING FROM OR
+RELATED TO THE USE OF OR INABILITY TO USE THE SOFTWARE, EVEN IF THE LICENSOR
+HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
-14) GOVERNING LAW
-This Agreement shall be governed by and construed in accordance with the laws of the Republic of the Philippines, without regard to conflict of law principles, and subject to applicable DOST institutional policies and Department of Education regulations.
+-------------------------------------------------------------------------------
+12. TERM AND TERMINATION
+-------------------------------------------------------------------------------
 
-15) DISPUTE RESOLUTION
-In the event of any dispute, controversy, or claim arising out of or relating to this Agreement, the Parties agree to first attempt resolution through good-faith negotiation for a period of not less than thirty (30) calendar days from the date of written notice of the dispute.
+This Agreement takes effect upon the Licensee's first use of the Software
+and remains in force until terminated.
 
-If the dispute remains unresolved after such period, either Party may submit the matter to the appropriate Regional Trial Court of [INSERT CITY/PROVINCE], Philippines, which shall have exclusive jurisdiction over such disputes. Each Party shall bear its own legal fees and costs unless the court orders otherwise.
+The Licensor may terminate this Agreement immediately upon written notice
+if the Licensee commits a material breach, including but not limited to:
 
-16) SEVERABILITY
-If any provision of this Agreement is found to be invalid, illegal, or unenforceable under applicable law, such provision shall be modified to the minimum extent necessary to make it enforceable, or if modification is not possible, severed from this Agreement. The remaining provisions shall continue in full force and effect and shall be construed to give effect to the original intent of the Parties.
+  (a) distributing or sharing the Software externally without permission;
+  (b) removing or altering any copyright or attribution notice;
+  (c) claiming the Software as the Licensee's own original work; or
+  (d) transferring any rights under this Agreement to a third party.
 
-17) NOTICES
-All notices, requests for permission, and formal communications required or permitted under this Agreement must be in writing and delivered by: (a) email with read receipt to the addresses on record with each Party; or (b) registered mail or personal delivery to the Parties' addresses below. Notices are effective upon confirmed receipt.
+Upon termination, the Licensee must immediately: (i) cease all use of the
+Software; (ii) destroy or delete all installed copies, backups, and modified
+versions; and (iii) provide written confirmation of destruction to the
+Licensor within fourteen (14) days.
 
-Licensor:  Bright R. Bastasa  |  [INSERT EMAIL]  |  [INSERT ADDRESS]
-Licensee:  [INSERT SAES PRINCIPAL OR AUTHORIZED REPRESENTATIVE]  |  San Alfonso Elementary School  |  [INSERT ADDRESS]
+Sections 2, 5, 6, 8, 10, 11, 14, and 15 survive termination.
 
-18) ENTIRE AGREEMENT
-This document constitutes the entire agreement between the Parties regarding the licensed use of the Software and supersedes all prior oral or written understandings, representations, or negotiations on the same subject matter.
+-------------------------------------------------------------------------------
+13. AUDIT AND COMPLIANCE
+-------------------------------------------------------------------------------
 
-Any amendment, modification, or waiver of any provision of this Agreement must be in writing and duly signed by authorized representatives of both Parties to be effective. No waiver of any breach shall constitute a waiver of any subsequent breach.
+Upon written request (no more than once per calendar year), the Licensee
+agrees to provide a written compliance statement confirming use in accordance
+with this Agreement, including the number of installed copies and devices.
+The Licensee shall respond within thirty (30) days of such request.
 
-19) ACCEPTANCE
-By signing below, or by installing, copying, modifying, or using the Software, the Licensee confirms that it has read, understood, and agrees to be bound by all terms and conditions of this Agreement. The authorized representative signing on behalf of SAES represents that they have the authority to bind the institution.
+-------------------------------------------------------------------------------
+14. GOVERNING LAW
+-------------------------------------------------------------------------------
+
+This Agreement is governed by the laws of the Republic of the Philippines,
+without regard to conflict of law principles, and subject to applicable DOST
+institutional policies and Department of Education regulations.
+
+-------------------------------------------------------------------------------
+15. DISPUTE RESOLUTION
+-------------------------------------------------------------------------------
+
+Any dispute arising from this Agreement shall first be subject to good-faith
+negotiation for no less than thirty (30) calendar days from written notice.
+If unresolved, either party may submit the matter to the appropriate Regional
+Trial Court of the Philippines, which shall have exclusive jurisdiction.
+Each party shall bear its own legal fees unless the court orders otherwise.
+
+-------------------------------------------------------------------------------
+16. SEVERABILITY
+-------------------------------------------------------------------------------
+
+If any provision of this Agreement is found invalid or unenforceable, it
+shall be modified to the minimum extent necessary, or severed if modification
+is not possible. All remaining provisions continue in full force and effect.
+
+-------------------------------------------------------------------------------
+17. NOTICES AND PERMISSION REQUESTS
+-------------------------------------------------------------------------------
+
+All permission requests and formal notices must be sent in writing via:
+
+  (a) Email to: brightbastasa@gmail.com (with read receipt requested); or
+  (b) Registered mail or personal delivery to the Licensor's address on
+      record.
+
+Notices are effective upon confirmed receipt.
+
+-------------------------------------------------------------------------------
+18. ENTIRE AGREEMENT
+-------------------------------------------------------------------------------
+
+This document constitutes the entire agreement between the parties regarding
+the licensed use of the Software and supersedes all prior oral or written
+understandings on the same subject. Any amendment must be in writing and
+agreed upon by both parties.
+
+-------------------------------------------------------------------------------
+ACCEPTANCE
+-------------------------------------------------------------------------------
+
+By installing, copying, modifying, or using the Software in any manner, you
+confirm that you have read, understood, and agree to be bound by all terms
+and conditions of this Agreement.

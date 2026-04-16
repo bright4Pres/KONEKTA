@@ -39,6 +39,19 @@ Source: "..\open_konekta_data_folder.bat"; DestDir: "{app}"; Flags: ignoreversio
 Source: "..\reset_konekta_data.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\school_release_package\README.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\school_release_package\README_FULL.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\school_release_package\LICENSE_KEY.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\school_release_package\DATABASE_ACCESS.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\school_release_package\TROUBLESHOOTING.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\school_release_package\STUDENT_QUICK_GUIDE.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\school_release_package\TEACHER_CLASSROOM_GUIDE.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\school_release_package\KONEKTA_Quick_Start_and_Troubleshooting.docx"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\school_release_package\KONEKTA_Print_Manual_A4.docx"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\school_release_package\open_konekta_database_file.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\school_release_package\backup_konekta_database.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\school_release_package\install_template_database.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\school_release_package\konekta_template.db"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\resources\images\konekta_logo.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
