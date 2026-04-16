@@ -1,11 +1,12 @@
-KONEKTA LICENSE / KEY INFO
+KONEKTA LICENSE AND KEY INFORMATION
 
-Product activation key:
-- NOT REQUIRED for this build.
+Do we need a product activation key?
+- No. This school build does not need an activation key.
 
-Teacher mode access key (default build setting):
+Teacher Mode default password:
 - konekta2026
 
-Note:
-- If your school requested a custom build with a changed teacher password, use the key provided by your build administrator.
-- Legal usage terms are in LICENSE.txt.
+Important notes:
+- If your school uses a custom build, the Teacher Mode password may be different.
+- In that case, use the password provided by your school admin or build owner.
+- Full legal terms are in LICENSE.txt.

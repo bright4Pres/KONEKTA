@@ -22,6 +22,7 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name='KONEKTA',
+    icon='resources/images/konekta_logo.ico',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

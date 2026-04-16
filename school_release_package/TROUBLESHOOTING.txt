@@ -1,26 +1,43 @@
-TROUBLESHOOTING CHECKLIST
+KONEKTA TROUBLESHOOTING GUIDE
 
-1) GAME DOES NOT OPEN
-- Re-run KONEKTA-Setup.exe.
-- Launch from Start Menu instead of old shortcut.
-- Ensure antivirus did not quarantine KONEKTA.exe.
+Use this file when something is not working.
+Follow each fix step by step.
 
-2) NO QUESTIONS FOUND
-- Enter Teacher Mode (Ctrl+T).
-- Add questions in Question Forge for the selected game/language/difficulty.
+1) PROBLEM: GAME DOES NOT OPEN
+Try this:
+- Run KONEKTA-Setup.exe again.
+- Open KONEKTA from Start Menu (do not use an old broken shortcut).
+- Check if antivirus blocked or quarantined the game.
 
-3) SCORES NOT SAVING
-- At end of each mini-game, press Enter to submit score.
-- Verify database exists in %LOCALAPPDATA%\KONEKTA\konekta.db.
+2) PROBLEM: "NO QUESTIONS FOUND" MESSAGE
+This means no question set is loaded for that slot.
+Try this:
+- Press Ctrl+T to open Teacher Mode.
+- Open Question Forge.
+- Add questions for the selected game, language, and difficulty.
 
-4) NEED CLEAN RESET
-- Close the game.
+3) PROBLEM: SCORE DID NOT SAVE
+Try this:
+- On game result screen, press Enter to submit score.
+- Check that data file exists at %LOCALAPPDATA%\KONEKTA\konekta.db.
+
+4) PROBLEM: APP FEELS BROKEN, NEED FRESH START
+Try this:
+- Close KONEKTA first.
 - Run reset_konekta_data.bat.
-- Relaunch game.
+- Open the game again.
 
-5) NEED TO KEEP DATA SAFE
-- Run backup_konekta_database.bat before maintenance.
+5) PROBLEM: NEED TO PROTECT DATA BEFORE CHANGES
+Try this:
+- Run backup_konekta_database.bat.
+- Keep the backup file in a safe folder.
 
-6) NEED TO INSPECT DATABASE
+6) PROBLEM: NEED TO VIEW OR CHECK SAVED DATA FILE
+Try this:
 - Run open_konekta_database_file.bat.
-- If prompted, choose a SQLite viewer tool if installed.
+- If Windows asks what app to use, choose any SQLite viewer available in school computers.
+
+GOOD PRACTICE BEFORE CLASS
+- Open game once and test all three mini-games.
+- Confirm scores are saving.
+- Confirm question banks are ready for all target languages.

@@ -20,6 +20,8 @@ OutputBaseFilename=KONEKTA-Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=..\resources\images\konekta_logo.ico
+UninstallDisplayIcon={app}\konekta_logo.ico
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 ArchitecturesAllowed=x64compatible
@@ -37,10 +39,11 @@ Source: "..\open_konekta_data_folder.bat"; DestDir: "{app}"; Flags: ignoreversio
 Source: "..\reset_konekta_data.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\resources\images\konekta_logo.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{autoprograms}\KONEKTA"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\KONEKTA"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{autoprograms}\KONEKTA"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\konekta_logo.ico"
+Name: "{autodesktop}\KONEKTA"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; IconFilename: "{app}\konekta_logo.ico"
 Name: "{autoprograms}\KONEKTA\Open Data Folder"; Filename: "{app}\open_konekta_data_folder.bat"
 Name: "{autoprograms}\KONEKTA\Reset Local Data"; Filename: "{app}\reset_konekta_data.bat"
 Name: "{autoprograms}\KONEKTA\Uninstall KONEKTA"; Filename: "{uninstallexe}"

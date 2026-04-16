@@ -1,34 +1,56 @@
 KONEKTA SCHOOL RELEASE PACKAGE
 
-This folder is intended for school deployment and troubleshooting without source code access.
+Welcome. This folder is made for teachers, students, and school staff.
+You can install, run, and troubleshoot KONEKTA even without source code.
 
-CONTENTS
+WHAT IS INSIDE THIS FOLDER
 - KONEKTA-Setup.exe
+	Install file for the game.
 - LICENSE.txt
+	Full legal terms for school use.
 - LICENSE_KEY.txt
+	Key details, including Teacher Mode default password.
 - KONEKTA_Quick_Start_and_Troubleshooting.docx
+	One-page classroom handout.
+- KONEKTA_Print_Manual_A4.docx
+	Full print-ready manual with one section per page.
 - DATABASE_ACCESS.txt
+	Easy guide for opening, backing up, and resetting saved data.
 - TROUBLESHOOTING.txt
+	Common problems and simple fixes.
+- STUDENT_QUICK_GUIDE.txt
+	Student-friendly game instructions.
+- TEACHER_CLASSROOM_GUIDE.txt
+	Teacher checklist for before, during, and after class.
 - open_konekta_data_folder.bat
+	Opens the folder where student and teacher data are saved.
 - open_konekta_database_file.bat
+	Opens the main data file.
 - backup_konekta_database.bat
+	Creates a backup copy of saved data.
 - reset_konekta_data.bat
+	Clears local data for a fresh start.
 - install_template_database.bat
+	Replaces current data with the clean template.
 - konekta_template.db
+	Clean starter database file.
 
-INSTALL
-1) Run KONEKTA-Setup.exe.
-2) Launch KONEKTA from Start Menu/Desktop shortcut.
-3) Use Teacher Mode (Ctrl+T) to load classroom questions.
+FIRST-TIME INSTALL (SCHOOL STAFF)
+1) Double-click KONEKTA-Setup.exe.
+2) Finish the setup steps on screen.
+3) Open KONEKTA from Start Menu or desktop shortcut.
+4) Enter Teacher Mode (Ctrl+T) to prepare classroom questions.
 
-IMPORTANT DATA LOCATION
-- Runtime database path (installed app): %LOCALAPPDATA%\KONEKTA\konekta.db
+DAILY CLASSROOM FLOW (TEACHER + STUDENTS)
+1) Teacher checks question banks in Teacher Mode.
+2) Students select profiles and play modules.
+3) Students press Enter at end of a game to save scores.
+4) Teacher reviews results in dashboard and leaderboard.
 
-QUICK TROUBLESHOOTING TOOLS
-- Open data folder: open_konekta_data_folder.bat
-- Open database file: open_konekta_database_file.bat
-- Backup database: backup_konekta_database.bat
-- Reset database: reset_konekta_data.bat
-- Install clean template database: install_template_database.bat
+WHERE SAVED DATA IS STORED
+- %LOCALAPPDATA%\KONEKTA\konekta.db
 
-If the game shows "NO QUESTIONS FOUND", add questions in Teacher Mode > Question Forge.
+IF YOU NEED HELP FAST
+1) Read TROUBLESHOOTING.txt.
+2) Use the .bat tools in this folder.
+3) If game says NO QUESTIONS FOUND, add questions in Teacher Mode > Question Forge.

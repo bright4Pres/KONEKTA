@@ -1,0 +1,29 @@
+KONEKTA STUDENT QUICK GUIDE
+
+Welcome to KONEKTA.
+This game helps you practice reading and understanding words and stories.
+
+HOW TO START
+1) Open KONEKTA.
+2) Choose your student profile.
+3) Walk on the map using Arrow Keys or WASD.
+4) Press Space near a game area to enter.
+5) Pick your language.
+6) Answer questions by pressing 1, 2, 3, or 4.
+7) At the end, press Enter to save your score.
+
+IMPORTANT TIPS
+- If you forget to press Enter at the end screen, your score may not save.
+- If you are done playing, press Esc to return to the map.
+- Ask your teacher for help if you see NO QUESTIONS FOUND.
+
+GAME CONTROLS (SIMPLE)
+- Move: Arrow Keys or WASD
+- Run: Shift
+- Enter game area: Space or E
+- Return to map: Esc
+
+DO YOUR BEST
+- Read each question carefully.
+- Take your time.
+- Learning is more important than speed.

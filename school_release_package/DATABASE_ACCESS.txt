@@ -1,22 +1,32 @@
-DATABASE ACCESS NOTES
+DATABASE ACCESS GUIDE (EASY VERSION)
 
-Runtime database file:
+What is this database?
+- It is the main save file of KONEKTA.
+- It stores student profiles, scores, and teacher question data.
+
+Main save file location:
 - %LOCALAPPDATA%\KONEKTA\konekta.db
 
-To open data folder quickly:
+If you need to open the save folder:
 - Run open_konekta_data_folder.bat
 
-To open database file quickly:
+If you need to open the save file itself:
 - Run open_konekta_database_file.bat
 
-To back up the database:
+If you need a safety backup first:
 - Run backup_konekta_database.bat
+- This creates a dated backup copy in the same data folder.
 
-To reset database (delete local data):
+If you need to clear all local data (fresh start):
 - Run reset_konekta_data.bat
+- Warning: this removes current local progress data.
 
-To replace with a clean template database:
+If you need a clean starter database again:
 - Run install_template_database.bat
+- This copies konekta_template.db into the active save location.
 
-Included template DB:
+Included clean template database:
 - konekta_template.db
+
+Recommended safety rule:
+- Always run backup_konekta_database.bat before reset or template install.

@@ -47,7 +47,7 @@ HINT_DELAY_MS = 5000  # 5 seconds
 HOVER_HINT_DELAY_MS = 3000  # 3 seconds
 
 # ---------------------------------------------------------------------------
-# Question banks are now database-driven.
+# Question  nks are now database-driven.
 # Add/manage game questions in Teacher Mode (custom_questions table).
 # ---------------------------------------------------------------------------
 # Teacher dashboard settings
@@ -81,6 +81,20 @@ FONT_PATH = os.path.join(
     'UI',
     'Winter Pixel Font.TTF',
 )
+
+
+def _pick_image_path(*candidate_names):
+    """Return first existing image path from candidates; fallback to first name."""
+    for filename in candidate_names:
+        candidate = os.path.join(IMAGE_PATH, filename)
+        if os.path.exists(candidate):
+            return candidate
+    return os.path.join(IMAGE_PATH, candidate_names[0])
+
+
+LOGO_IMAGE_PATH = _pick_image_path('konekta_logo.png')
+TITLE_SCREEN_IMAGE_PATH = _pick_image_path('konekta_title_screen.png', 'konekta_title_page.png')
+WINDOW_ICON_PATH = _pick_image_path('konekta_logo.ico', 'konekta_logo.png')
 
 def resolve_app_data_path():
     """Choose a writable folder for persistent data."""

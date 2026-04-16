@@ -166,6 +166,211 @@ class State:
         return None
 
 
+class TitleScreenState(State):
+    """animated title screen with blocky pixel vibe before map starts."""
+
+    def __init__(self, game):
+        super().__init__(game)
+        self.anim_time = 0.0
+        self.entered_at = 0.0
+        self.input_unlock_at = 0.0
+
+        self.title_raw = self._safe_load_image(config.TITLE_SCREEN_IMAGE_PATH)
+        self.logo_raw = self._safe_load_image(config.LOGO_IMAGE_PATH)
+
+        self.title_image = None
+        self.logo_image = None
+        self.bg_gradient = None
+        self.scanlines = None
+        self.layout_size = (0, 0)
+
+        self.blocks = []
+        self.sparkles = []
+        self.block_colors = [
+            (23, 44, 74),
+            (29, 58, 94),
+            (38, 72, 112),
+            (52, 92, 138),
+        ]
+
+        self._refresh_layout()
+
+    @staticmethod
+    def _safe_load_image(path):
+        """load image and keep alpha; return None if missing/corrupt."""
+        try:
+            return pygame.image.load(path).convert_alpha()
+        except Exception:
+            return None
+
+    @staticmethod
+    def _fit_image(surface, max_w, max_h):
+        """scale image to fit a box while keeping aspect ratio."""
+        if surface is None:
+            return None
+        sw, sh = surface.get_size()
+        if sw <= 0 or sh <= 0:
+            return None
+        scale = min(max_w / sw, max_h / sh)
+        width = max(1, int(sw * scale))
+        height = max(1, int(sh * scale))
+        return pygame.transform.scale(surface, (width, height))
+
+    def _refresh_layout(self):
+        """rebuild scaled assets + decorative layers for current resolution."""
+        w, h = config.SCREEN_WIDTH, config.SCREEN_HEIGHT
+        self.layout_size = (w, h)
+        self.bg_gradient = self.create_gradient(
+            w,
+            h,
+            lambda i: (10 + (i * 20) // max(1, h), 24 + (i * 28) // max(1, h), 46 + (i * 34) // max(1, h)),
+        )
+
+        self.scanlines = pygame.Surface((w, h), pygame.SRCALPHA)
+        for y in range(0, h, 4):
+            pygame.draw.line(self.scanlines, (0, 0, 0, 25), (0, y), (w, y))
+
+        self.title_image = self._fit_image(self.title_raw, int(w * 0.82), int(h * 0.52))
+        self.logo_image = self._fit_image(self.logo_raw, int(w * 0.16), int(h * 0.14))
+
+        self.blocks = []
+        block_count = max(18, w // 90)
+        for _ in range(block_count):
+            bw = random.choice([24, 32, 40, 48, 56, 64])
+            bh = random.choice([16, 20, 24, 28, 32])
+            self.blocks.append({
+                'x': random.randint(-80, w + 80),
+                'y': random.randint(-h, h),
+                'w': bw,
+                'h': bh,
+                'speed': random.uniform(28.0, 78.0),
+                'drift': random.uniform(-16.0, 16.0),
+                'phase': random.uniform(0.0, math.tau),
+                'color': random.choice(self.block_colors),
+            })
+
+        self.sparkles = []
+        sparkle_count = max(50, (w * h) // 35000)
+        sparkle_palette = [config.YELLOW, config.WHITE, config.LIGHT_BLUE]
+        for _ in range(sparkle_count):
+            self.sparkles.append({
+                'x': random.randint(0, w - 1),
+                'y': random.randint(0, h - 1),
+                'size': random.choice([2, 2, 3, 4]),
+                'speed': random.uniform(12.0, 42.0),
+                'phase': random.uniform(0.0, math.tau),
+                'twinkle': random.uniform(2.0, 6.0),
+                'color': random.choice(sparkle_palette),
+            })
+
+    def enter(self):
+        self.next_state = None
+        self.anim_time = 0.0
+        self.entered_at = time.time()
+        self.input_unlock_at = self.entered_at + 0.45
+        if self.layout_size != (config.SCREEN_WIDTH, config.SCREEN_HEIGHT):
+            self._refresh_layout()
+
+    def handle_event(self, event):
+        if event.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN):
+            if time.time() >= self.input_unlock_at:
+                self.next_state = 'menu'
+
+    def update(self, dt):
+        self.anim_time += dt
+        w, h = self.layout_size
+
+        for block in self.blocks:
+            block['y'] += block['speed'] * dt
+            block['x'] += math.sin(self.anim_time * 0.8 + block['phase']) * block['drift'] * dt
+            if block['y'] > h + 36:
+                block['y'] = -block['h'] - random.randint(20, h // 2)
+                block['x'] = random.randint(-80, w + 80)
+
+        for spark in self.sparkles:
+            spark['y'] += spark['speed'] * dt
+            if spark['y'] > h + spark['size']:
+                spark['y'] = -spark['size']
+                spark['x'] = random.randint(0, max(1, w - 1))
+
+    def draw(self, screen):
+        if self.layout_size != (config.SCREEN_WIDTH, config.SCREEN_HEIGHT):
+            self._refresh_layout()
+
+        w, h = self.layout_size
+
+        if self.bg_gradient:
+            screen.blit(self.bg_gradient, (0, 0))
+        else:
+            screen.fill((14, 24, 46))
+
+        for block in self.blocks:
+            rect = pygame.Rect(int(block['x']), int(block['y']), block['w'], block['h'])
+            pygame.draw.rect(screen, block['color'], rect)
+            pygame.draw.rect(screen, (10, 18, 30), rect, 2)
+            if rect.height > 5:
+                shine = pygame.Rect(rect.x + 2, rect.y + 2, max(1, rect.w - 4), 2)
+                pygame.draw.rect(screen, (130, 180, 230), shine)
+
+        for spark in self.sparkles:
+            glow = 0.55 + 0.45 * (0.5 + 0.5 * math.sin(self.anim_time * spark['twinkle'] + spark['phase']))
+            color = tuple(min(255, int(channel * glow)) for channel in spark['color'])
+            pygame.draw.rect(
+                screen,
+                color,
+                pygame.Rect(int(spark['x']), int(spark['y']), spark['size'], spark['size']),
+            )
+
+        frame = pygame.Rect(int(w * 0.08), int(h * 0.09), int(w * 0.84), int(h * 0.78))
+        pygame.draw.rect(screen, config.BLACK, frame.move(6, 6))
+        pygame.draw.rect(screen, (14, 26, 44), frame)
+        pygame.draw.rect(screen, config.YELLOW, frame, 4)
+
+        if self.logo_image:
+            logo_bob = int(math.sin(self.anim_time * 2.8) * 3)
+            logo_rect = self.logo_image.get_rect(midtop=(w // 2, frame.y + 16 + logo_bob))
+            screen.blit(self.logo_image, logo_rect)
+
+        if self.title_image:
+            pulse = 1.0 + math.sin(self.anim_time * 2.2) * 0.02
+            tw, th = self.title_image.get_size()
+            live_w = max(1, int(tw * pulse))
+            live_h = max(1, int(th * pulse))
+            animated_title = pygame.transform.scale(self.title_image, (live_w, live_h))
+            title_y = int(h * 0.42) + int(math.sin(self.anim_time * 1.7) * 8)
+            title_rect = animated_title.get_rect(center=(w // 2, title_y))
+            screen.blit(animated_title, title_rect.move(4, 4))
+            screen.blit(animated_title, title_rect)
+        else:
+            fallback = self.game.font_title.render('KONEKTA', True, config.YELLOW)
+            fallback_shadow = self.game.font_title.render('KONEKTA', True, config.BLACK)
+            fallback_rect = fallback.get_rect(center=(w // 2, int(h * 0.42)))
+            screen.blit(fallback_shadow, fallback_rect.move(3, 3))
+            screen.blit(fallback, fallback_rect)
+
+        subtitle = self.game.font_medium.render('Classroom Literacy Arcade', True, config.WHITE)
+        subtitle_rect = subtitle.get_rect(center=(w // 2, int(h * 0.64)))
+        pygame.draw.rect(screen, config.BLACK, subtitle_rect.inflate(24, 14).move(2, 2))
+        pygame.draw.rect(screen, (30, 45, 68), subtitle_rect.inflate(24, 14))
+        pygame.draw.rect(screen, config.BLUE, subtitle_rect.inflate(24, 14), 3)
+        screen.blit(subtitle, subtitle_rect)
+
+        blink_on = int((time.time() - self.entered_at) * 2.3) % 2 == 0
+        prompt_color = config.YELLOW if blink_on else config.WHITE
+        prompt = self.game.font_large.render('PRESS ANY KEY TO START', True, prompt_color)
+        prompt_shadow = self.game.font_large.render('PRESS ANY KEY TO START', True, config.BLACK)
+        prompt_rect = prompt.get_rect(center=(w // 2, int(h * 0.77)))
+        screen.blit(prompt_shadow, prompt_rect.move(2, 2))
+        screen.blit(prompt, prompt_rect)
+
+        tip = self.game.font_small.render('CTRL+T: Teacher Mode  |  ESC on map: Exit game', True, config.LIGHT_GRAY)
+        tip_rect = tip.get_rect(center=(w // 2, int(h * 0.86)))
+        screen.blit(tip, tip_rect)
+
+        if self.scanlines:
+            screen.blit(self.scanlines, (0, 0))
+
+
 # Menu (the overworld map)
 
 class MenuState(State):

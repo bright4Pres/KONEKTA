@@ -1,0 +1,28 @@
+KONEKTA TEACHER CLASSROOM GUIDE
+
+This guide is for teachers who will use KONEKTA during class.
+
+BEFORE CLASS
+1) Open KONEKTA.
+2) Enter Teacher Mode using Ctrl+T.
+3) Check Question Forge.
+4) Confirm each game has questions for the language and difficulty you plan to use.
+5) Test each mini-game once.
+
+DURING CLASS
+1) Let students select their own profiles.
+2) Ask students to press Enter at end screen so scores are saved.
+3) Monitor engagement and reading behavior.
+
+AFTER CLASS
+1) Open Teacher dashboard.
+2) Review leaderboard and activity results.
+3) Back up data using backup_konekta_database.bat.
+
+IF SOMETHING GOES WRONG
+- Read TROUBLESHOOTING.txt.
+- Use reset_konekta_data.bat only when needed.
+- Always back up data first.
+
+WHERE DATA IS SAVED
+- %LOCALAPPDATA%\KONEKTA\konekta.db

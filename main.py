@@ -4,9 +4,11 @@
 import pygame
 import sys
 import time
+import os
 import config
 from database import Database
 from states import (
+    TitleScreenState,
     MenuState, 
     TeacherDashboardState,
     BarangayCaptainState,
@@ -48,6 +50,12 @@ class Game:
             )
         
         pygame.display.set_caption("Konekta the Game")
+        try:
+            if os.path.exists(config.WINDOW_ICON_PATH):
+                pygame.display.set_icon(pygame.image.load(config.WINDOW_ICON_PATH).convert_alpha())
+        except Exception:
+            # icon load failure should never block app startup
+            pass
         
         # clock for timing
         self.clock = pygame.time.Clock()
@@ -66,6 +74,7 @@ class Game:
         
         # all the different game screens (singletons per run)
         self.states = {
+            'title': TitleScreenState(self),
             'menu': MenuState(self),
             'teacher': TeacherDashboardState(self),
             'barangay': BarangayCaptainState(self),
@@ -73,7 +82,7 @@ class Game:
             'synonym_antonym': SynonymAntonymState(self)
         }
         
-        self.current_state = self.states['menu']
+        self.current_state = self.states['title']
         self.current_state.enter()
         
         # track how long they play
